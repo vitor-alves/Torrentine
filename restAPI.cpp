@@ -54,6 +54,8 @@ void RestAPI::define_resources() {
 		for(lt::torrent_handle handle : torrent_handle_vector) {
 			// TODO - child is a exists only inside the "for", yet I am passing using the tree with the childs outside the for.
 			//			When add_child is called what happens to the child? How safe is this ?
+
+			// TODO - assure those values exist for EVERY handle. Read the docs to understand.
 			ptree child;
 			child.put("name", handle.status().name);
 			child.put("down_rate", handle.status().download_rate);
@@ -63,7 +65,14 @@ void RestAPI::define_resources() {
 			child.put("up_total", handle.status().total_upload);
 			child.put("seeds", handle.status().num_seeds);
 			child.put("peers", handle.status().num_peers);
-			tree.add_child("id_torrent", child);
+
+			/* TODO - be careful here! fix this later! info_hash() returns the info-hash of the torrent.
+			  If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
+			   the returned value is undefined. */
+			std::stringstream str_stream;
+			str_stream << handle.status().info_hash;
+			
+			tree.add_child(str_stream.str(), child);
 		}
 
 		std::stringstream str_stream;
