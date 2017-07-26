@@ -1,0 +1,50 @@
+@font-face {
+    font-family: "Josefin Sans Thin";
+    src: url("styles/fonts/JosefinSans-Thin.ttf");
+}
+body {
+    margin: 0;
+    padding: 0;
+}
+.el-table td,
+.el-table th {
+    height: 10px;
+}
+.el-menu--horizontal .el-menu-item {
+    height: 35px;
+    line-height: 35px;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+.el-menu--horizontal .el-submenu .el-submenu__title {
+    height: 35px;
+    line-height: 35px;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+.el-row {
+    margin-bottom: 0px;
+    &:last-child {
+        margin-bottom: 0;
+    }
+}
+.el-col {
+    border-radius: 4px;
+}
+.bg-purple-dark {
+    background: #99a9bf;
+}
+.bg-purple {
+    background: #d3dce6;
+}
+.bg-purple-light {
+    background: #e5e9f2;
+}
+.grid-content {
+    border-radius: 4px;
+    min-height: 36px;
+}
+.row-bg {
+    padding: 10px 0;
+    background-color: #f9fafc;
+}

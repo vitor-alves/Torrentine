@@ -21,6 +21,7 @@ int main(int argc, char const* argv[])
 	torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/debian-9.1.0-ppc64el-netinst.iso.torrent", "./test/test_download/");
 	torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/debian-9.1.0-s390x-netinst.iso.torrent", "./test/test_download/");
 	torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/debian-live-9.0.1-amd64-lxde.iso.torrent", "./test/test_download/");
+	torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/kali-linux-2017.1-amd64.torrent", "./test/test_download/");
 
 	while(true) {
 		torrent_manager.update_torrent_console_view();

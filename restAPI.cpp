@@ -69,10 +69,10 @@ void RestAPI::define_resources() {
 			/* TODO - be careful here! fix this later! info_hash() returns the info-hash of the torrent.
 			  If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
 			   the returned value is undefined. */
-			std::stringstream str_stream;
-			str_stream << handle.status().info_hash;
+			std::stringstream ss_info_hash;
+			ss_info_hash << handle.status().info_hash;
 			
-			tree.add_child(str_stream.str(), child);
+			tree.add_child(ss_info_hash.str(), child);
 		}
 
 		std::stringstream str_stream;
