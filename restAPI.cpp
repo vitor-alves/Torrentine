@@ -13,14 +13,22 @@
 // local headers
 #include "restAPI.h"
 #include "torrentManager.h"
+#include "config.h"
+#include <random>
 
 using namespace std;
 using namespace boost::property_tree;
 
-RestAPI::RestAPI(int port, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
-	server.config.port = port;
+RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
+	server.config.port = stoi(config.get_config("api.port"));
+	
+	try {
+		torrent_file_path = config.get_config("directory.torrent_file_path");
+		download_path = config.get_config("directory.download_path"); }
+	catch(boost::property_tree::ptree_error &e) {
+		std::cerr << e.what() << std::endl; }	// TODO - Treat/Log this
 	define_resources();
-}
+}		
 
 RestAPI::~RestAPI() {
 	stop_server();
@@ -41,6 +49,18 @@ void RestAPI::stop_server() {
 	// 			things may get corrupted.
 	delete server_thread;
 }
+
+// TODO - move this somewhere else. Maybe a new class.
+/* Generate random string */
+std::string randomString(std::string chars, int size) {
+	std::random_device rgn;
+	std::uniform_int_distribution<> index_dist(0, (chars.size()-1));
+	std::stringstream ss;
+	for(int i=0; i < size; i++) {
+		ss << chars[index_dist(rgn)];
+	}
+	return ss.str();
+} 
 
 void RestAPI::define_resources() {
 
@@ -84,23 +104,35 @@ void RestAPI::define_resources() {
 					<< json;
 	};
 
-	/* POST request resource - receive json in format 
-	{
-	"firstName": "John",
-	"lastName": "Smithff",
-	"age": 25
-	} 
-	and returns data it contains */
-	server.resource["^/json$"]["POST"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+	/* POST request resource - adds new torrent from .torrent file */
+	// TODO - what if torrent file (or POST content) is not valid?
+	server.resource["^/torrent/add_file$"]["POST"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
 		try {
-			ptree pt;
-			read_json(request->content, pt);
+			
 
-			auto name = pt.get<string>("firstName") + " " + pt.get<string>("lastName");
+			/* Generate random name for .torrent file */
+			std::string name;
+			do {
+				name = randomString("1234567890", 20) + ".torrent";
+			}
+			while(boost::filesystem::exists(torrent_file_path + name));
+
+			/* Write .torrent file */
+			auto content = request->content.string();
+			ofstream file;
+			// TODO - what if there is no permission to write file ?
+			file.open(torrent_file_path + name, std::ofstream::out);
+			file << content;
+			file.close();
+
+			/* Add torrent */
+			torrent_manager.add_torrent_async(torrent_file_path + name, download_path);
+
+			std::string json = "{file:\""+name+"\",success:\"true\"}";
 
 			*response << "HTTP/1.1 200 OK\r\n"
-						<< "Content-Length: " << name.length() << "\r\n\r\n"
-						<< name;
+						<< "Content-Length: " << json.length() << "\r\n\r\n"
+						<< json;
 		}
 		catch(const exception &e) {
 			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
