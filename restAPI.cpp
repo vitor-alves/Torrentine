@@ -64,33 +64,33 @@ std::string randomString(std::string chars, int size) {
 
 void RestAPI::define_resources() {
 
-	/* GET request resource - returns json containing all torrents in torrent_handle_vector */
+	/* GET request resource - returns json containing all torrents */
 	server.resource["^/torrent$"]["GET"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
-		std::vector<lt::torrent_handle>& torrent_handle_vector = torrent_manager.get_torrent_handle_vector();
+		std::vector<Torrent*> torrents = torrent_manager.get_torrents();
 
-		/* Construct a property tree containing information from all torrents in torrent_handle_vector.
+		/* Construct a property tree containing information from all torrents .
 			Used to write a JSON that is sent as response. */
 		ptree tree;
-		for(lt::torrent_handle handle : torrent_handle_vector) {
+		for(Torrent* torrent : torrents) {
 			// TODO - child is a exists only inside the "for", yet I am passing using the tree with the childs outside the for.
 			//			When add_child is called what happens to the child? How safe is this ?
 
 			// TODO - assure those values exist for EVERY handle. Read the docs to understand.
 			ptree child;
-			child.put("name", handle.status().name);
-			child.put("down_rate", handle.status().download_rate);
-			child.put("up_rate", handle.status().upload_rate);
-			child.put("progress", handle.status().progress);
-			child.put("down_total", handle.status().total_download);
-			child.put("up_total", handle.status().total_upload);
-			child.put("seeds", handle.status().num_seeds);
-			child.put("peers", handle.status().num_peers);
+			child.put("name", torrent->get_handle().status().name);
+			child.put("down_rate", torrent->get_handle().status().download_rate);
+			child.put("up_rate", torrent->get_handle().status().upload_rate);
+			child.put("progress", torrent->get_handle().status().progress);
+			child.put("down_total",torrent->get_handle().status().total_download);
+			child.put("up_total", torrent->get_handle().status().total_upload);
+			child.put("seeds", torrent->get_handle().status().num_seeds);
+			child.put("peers", torrent->get_handle().status().num_peers);
 
 			/* TODO - be careful here! fix this later! info_hash() returns the info-hash of the torrent.
 			  If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
 			   the returned value is undefined. */
 			std::stringstream ss_info_hash;
-			ss_info_hash << handle.status().info_hash;
+			ss_info_hash << torrent->get_handle().status().info_hash;
 			
 			tree.add_child(ss_info_hash.str(), child);
 		}

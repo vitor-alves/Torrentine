@@ -7,6 +7,7 @@
 #include <libtorrent/lazy_entry.hpp>
 #include <libtorrent/lazy_entry.hpp>
 #include <libtorrent/peer_info.hpp>
+#include "torrent.h"
 
 #ifndef TORRENT_MANAGER_H
 #define TORRENT_MANAGER_H
@@ -16,7 +17,7 @@ namespace lt = libtorrent;
 class TorrentManager {
 private:
 	lt::session session;
-	std::vector<lt::torrent_handle> torrent_handle_vector;
+	std::vector<Torrent*> torrents;	
 
 public:
 	TorrentManager();
@@ -24,7 +25,7 @@ public:
 	void add_torrent_async(std::string filename, std::string save_path);
 	void check_alerts();
 	void update_torrent_console_view(); // Deprecated
-	std::vector<lt::torrent_handle>& get_torrent_handle_vector();
+	std::vector<Torrent*>& get_torrents();
 };
 
 #endif

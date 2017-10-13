@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include "torrentManager.h"
 
+
 // TODO - treat errors on error_code, finding file etc
 void TorrentManager::add_torrent_async(std::string filename, std::string save_path) {
 	/* ADD TORRENT - .TORRENT FILE - ASYNC */
@@ -35,17 +36,21 @@ void TorrentManager::add_torrent_async(std::string filename, std::string save_pa
 }
 
 void TorrentManager::update_torrent_console_view() {
-	for(lt::torrent_handle handle : torrent_handle_vector) {
-		std::cout << "name: " << handle.status().name << " / ";
-		std::cout << "down: " << handle.status().download_rate / 1000 << "Kb/s" << " / ";
-		std::cout << "up: " << handle.status().upload_rate / 1000 << "Kb/s" << " / ";
-		std::cout << "prog: " << handle.status().progress * 100.0 << "%" << " / ";
-		//std::cout << "Tracker: " << handle.status().current_tracker << " / ";
-		std::cout << "t_down: " << handle.status().total_download / 1000 << "Kb" << " / ";
-		std::cout << "t_up: " << handle.status().total_upload / 1000 << "Kb" << " / ";
-		std::cout << "seeds: " << handle.status().num_seeds<< " / ";
-		std::cout << "peers: " << handle.status().num_peers << " / " << std::endl;
+
+	for(Torrent* torrent : torrents) {
+		std::cout << "name: " << torrent->get_handle().status().name << " / ";
+		std::cout << "hash: " << torrent->get_handle().status().info_hash << " / ";
+		std::cout << "down: " << torrent->get_handle().status().download_rate / 1000 << "Kb/s" << " / ";
+		std::cout << "up: " << torrent->get_handle().status().upload_rate / 1000 << "Kb/s" << " / ";
+		std::cout << "prog: " << torrent->get_handle().status().progress * 100.0 << "%" << " / ";
+		//std::cout << "Tracker: " << torrent->get_handle().status().current_tracker << " / ";
+		std::cout << "t_down: " << torrent->get_handle().status().total_download / 1000 << "Kb" << " / ";
+		std::cout << "t_up: " << torrent->get_handle().status().total_upload / 1000 << "Kb" << " / ";
+		std::cout << "seeds: " << torrent->get_handle().status().num_seeds<< " / ";
+		std::cout << "peers: " << torrent->get_handle().status().num_peers << " / " << std::endl;
+
 	}
+	
 	std::cout << std::endl;
 }
 
@@ -65,15 +70,18 @@ void TorrentManager::check_alerts() {
 		}
 		if (lt::alert_cast<lt::add_torrent_alert>(a)) {
 			lt::add_torrent_alert const * a_temp = lt::alert_cast<lt::add_torrent_alert>(a);
-			torrent_handle_vector.push_back(a_temp->handle);
+			
+			Torrent* torrent = new Torrent();
+			torrent->set_handle(a_temp->handle);
+			torrents.push_back(torrent);
 		}
 	}
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(200));
 }
 
-std::vector<lt::torrent_handle>& TorrentManager::get_torrent_handle_vector() {
-	return torrent_handle_vector;
+std::vector<Torrent*>& TorrentManager::get_torrents() {
+	return torrents;
 }
 
 TorrentManager::TorrentManager() {

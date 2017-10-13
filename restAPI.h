@@ -21,7 +21,7 @@ public:
 	RestAPI(ConfigManager config, TorrentManager& torrentManager);
 	~RestAPI();
 	void start_server();
-	void stop_server();
+	void stop_server();	
 };
 
 #endif
