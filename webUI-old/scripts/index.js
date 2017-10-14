@@ -12,7 +12,7 @@ new Vue({
 	},
 	methods: {
 		post: function() {
-			this.$http.post("http://localhost:9000/", {
+			this.$http.post("http://localhost:8448/", {
 				title: 'ronaldo',
 				body: 'brilha muito',
 				userId: 123
@@ -21,7 +21,7 @@ new Vue({
 			});
 		},
 		getTorrent: function() {
-			this.$http.get("http://localhost:9000/torrent")
+			this.$http.get("http://localhost:8448/torrent")
 				.then(response => {
 					return response.json();
 				})

@@ -32,3 +32,4 @@ notes.txt
 bitsleek
 test/test_download/
 *.swp
+*.vim
