@@ -106,7 +106,7 @@ void RestAPI::define_resources() {
 	
 
 	/* TODO - implement this. This is the request that is made by the client to verify that a torrent with a id or torrent_hash was in fact removed after de client tried to remove it using the DELETE /torrent/remove method. This sends back the status to the user. Possible status are:
-	 could not delete, still deleting, deleted succesfully */ 
+	 could not delete, still deleting, deleted succesfully. Make it possible to verify multiple ids (or info hashes) at once */ 
 	server.resource["^/torrent/removed$"]["GET"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
 		try{
 		
@@ -116,7 +116,8 @@ void RestAPI::define_resources() {
 						<< e.what();
 		}
 	};
-
+	
+	/* TODO - change this to accept multiple torrent ids/remove_data to remove them all at once */
 	server.resource["^/torrent/remove$"]["DELETE"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
 		try {
 			
@@ -153,6 +154,7 @@ void RestAPI::define_resources() {
 
 	/* POST request resource - adds new torrent from .torrent file */
 	// TODO - what if torrent file (or POST content) is not valid?
+	// Maybe there is a way to receive multiple files
 	server.resource["^/torrent/add_file$"]["POST"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
 		try {
 			
