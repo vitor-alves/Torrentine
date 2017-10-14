@@ -26,6 +26,8 @@ public:
 	void check_alerts();
 	void update_torrent_console_view(); // Deprecated
 	std::vector<Torrent*>& get_torrents();
+	unsigned int generate_torrent_id();
+	bool remove_torrent(int id, bool remove_data);
 };
 
 #endif

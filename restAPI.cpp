@@ -103,6 +103,53 @@ void RestAPI::define_resources() {
 		*response << "HTTP/1.1 200 OK\r\nContent-Length: " << json.length() << "\r\n\r\n"
 					<< json;
 	};
+	
+
+	/* TODO - implement this. This is the request that is made by the client to verify that a torrent with a id or torrent_hash was in fact removed after de client tried to remove it using the DELETE /torrent/remove method. This sends back the status to the user. Possible status are:
+	 could not delete, still deleting, deleted succesfully */ 
+	server.resource["^/torrent/removed$"]["GET"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+		try{
+		
+		}
+		catch(const exception &e) {
+			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
+						<< e.what();
+		}
+	};
+
+	server.resource["^/torrent/remove$"]["DELETE"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+		try {
+			
+			SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
+			int id = stoi(query.find("id")->second);
+			bool remove_data;
+		  	std::istringstream(query.find("remove_data")->second) >> std::boolalpha >> remove_data;
+			bool result = torrent_manager.remove_torrent(id, remove_data);
+			
+			// TODO - this is what I am doing. Document this somehow. view the GET /torrent/removed above!
+			/* https://www.safaribooksonline.com/library/view/restful-web-services/9780596809140/ch01s10.html */
+			std::string json;
+			if(result == true) {
+				json = "{\"status\":\"An attempt to remove the torrent will be made\"}";
+				*response << "HTTP/1.1 202 Accepted\r\n"
+						<< "Content-Length: " << json.length() << "\r\n\r\n"
+						<< json;
+			}
+			else {
+				std::stringstream ss;
+				ss << "{\"status\":\"Could not find a torrent with id: " << id << "\"}";
+				json = ss.str();
+				*response << "HTTP/1.1 404 Not Found\r\n"
+						<< "Content-Length: " << json.length() << "\r\n\r\n"
+						<< json;
+			}	
+		}
+		catch(const exception &e) {
+			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
+						<< e.what();
+		}		
+	
+	};
 
 	/* POST request resource - adds new torrent from .torrent file */
 	// TODO - what if torrent file (or POST content) is not valid?

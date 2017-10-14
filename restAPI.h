@@ -7,6 +7,8 @@
 
 typedef SimpleWeb::Server<SimpleWeb::HTTP> HttpServer;
 
+using CaseInsensitiveMultimap = std::unordered_multimap<std::string, std::string, SimpleWeb::CaseInsensitiveHash, SimpleWeb::CaseInsensitiveEqual>;
+
 class RestAPI {
 
 private:
