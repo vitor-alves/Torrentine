@@ -5,7 +5,6 @@
 #include <libtorrent/torrent_info.hpp>
 #include <libtorrent/bencode.hpp>
 #include <libtorrent/lazy_entry.hpp>
-#include <libtorrent/lazy_entry.hpp>
 #include <libtorrent/peer_info.hpp>
 #include "torrent.h"
 
@@ -22,12 +21,12 @@ private:
 public:
 	TorrentManager();
 	~TorrentManager();
-	void add_torrent_async(std::string filename, std::string save_path);
+	void add_torrent_async(const std::string filename,const std::string save_path);
 	void check_alerts();
-	void update_torrent_console_view(); // Deprecated
-	std::vector<Torrent*>& get_torrents();
-	unsigned int generate_torrent_id();
-	bool remove_torrent(int id, bool remove_data);
+	void update_torrent_console_view();
+	const std::vector<Torrent*>& get_torrents();
+	const unsigned int generate_torrent_id();
+	bool remove_torrent(unsigned int id, bool remove_data);
 };
 
 #endif

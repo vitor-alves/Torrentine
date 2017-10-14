@@ -11,7 +11,7 @@ private:
 public:
 	void save_config();
 	void load_config();
-	std::string get_config(std::string name);
+	const std::string get_config(std::string name);
 	void set_config(std::string name, std::string value);
 	ConfigManager();
 	~ConfigManager();

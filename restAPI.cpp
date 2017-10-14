@@ -1,23 +1,15 @@
-// Added for json
 #define BOOST_SPIRIT_THREADSAFE
 #include <boost/property_tree/json_parser.hpp>
-#include <boost/filesystem.hpp>
-// Added for default resource
-#include <algorithm>
 #include <boost/filesystem.hpp>
 #include <fstream>
 #include <vector>
 #ifdef HAVE_OPENSSL
 #include "crypto.hpp"
 #endif
-// local headers
 #include "restAPI.h"
 #include "torrentManager.h"
 #include "config.h"
-#include <random>
-
-using namespace std;
-using namespace boost::property_tree;
+#include "utility.h"
 
 RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
 	server.config.port = stoi(config.get_config("api.port"));
@@ -35,94 +27,87 @@ RestAPI::~RestAPI() {
 }
 
 void RestAPI::start_server() {
-	server_thread = new thread( [this](){ server.start(); } );
-	// TODO - need to wait for thread to finish ? server_thread.join();
+	server_thread = new std::thread( [this](){ server.start(); } );
 
-	server.on_error = [](shared_ptr<HttpServer::Request> /*request*/, const SimpleWeb::error_code & /*ec*/) {
+	server.on_error = [](std::shared_ptr<HttpServer::Request>, const SimpleWeb::error_code & ) {
 		// TODO - Handle errors here
-		//		when server cant bind to port where does the error occurs ? treat it.
 	};
 }
 
 void RestAPI::stop_server() {
 	// TODO - how safe is this ? If the thread gets killed in the middle of certain operations
-	// 			things may get corrupted.
+	// 	things may get corrupted.
 	delete server_thread;
-}
-
-// TODO - move this somewhere else. Maybe a new class.
-/* Generate random string */
-std::string randomString(std::string chars, int size) {
-	std::random_device rgn;
-	std::uniform_int_distribution<> index_dist(0, (chars.size()-1));
-	std::stringstream ss;
-	for(int i=0; i < size; i++) {
-		ss << chars[index_dist(rgn)];
-	}
-	return ss.str();
 } 
 
+/* Define HTTP resources */
 void RestAPI::define_resources() {
 
 	/* GET request resource - returns json containing all torrents */
-	server.resource["^/torrent$"]["GET"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
-		std::vector<Torrent*> torrents = torrent_manager.get_torrents();
+	server.resource["^/torrent$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+		try { 
+			const std::vector<Torrent*> torrents = torrent_manager.get_torrents();
 
-		/* Construct a property tree containing information from all torrents .
+			/* Construct a property tree containing information from all torrents .
 			Used to write a JSON that is sent as response. */
-		ptree tree;
-		for(Torrent* torrent : torrents) {
-			// TODO - child is a exists only inside the "for", yet I am passing using the tree with the childs outside the for.
-			//			When add_child is called what happens to the child? How safe is this ?
+			boost::property_tree::ptree tree;
+			for(Torrent* torrent : torrents) {
+				// TODO - child is a exists only inside the "for", yet I am passing using the tree with the childs outside the for.
+				//			When add_child is called what happens to the child? How safe is this ?
 
-			// TODO - assure those values exist for EVERY handle. Read the docs to understand.
-			ptree child;
-			child.put("name", torrent->get_handle().status().name);
-			child.put("down_rate", torrent->get_handle().status().download_rate);
-			child.put("up_rate", torrent->get_handle().status().upload_rate);
-			child.put("progress", torrent->get_handle().status().progress);
-			child.put("down_total",torrent->get_handle().status().total_download);
-			child.put("up_total", torrent->get_handle().status().total_upload);
-			child.put("seeds", torrent->get_handle().status().num_seeds);
-			child.put("peers", torrent->get_handle().status().num_peers);
+				// TODO - assure those values exist for EVERY handle. Read the docs to understand.
+				boost::property_tree::ptree child;
+				child.put("name", torrent->get_handle().status().name);
+				child.put("down_rate", torrent->get_handle().status().download_rate);
+				child.put("up_rate", torrent->get_handle().status().upload_rate);
+				child.put("progress", torrent->get_handle().status().progress);
+				child.put("down_total",torrent->get_handle().status().total_download);
+				child.put("up_total", torrent->get_handle().status().total_upload);
+				child.put("seeds", torrent->get_handle().status().num_seeds);
+				child.put("peers", torrent->get_handle().status().num_peers);
 
-			/* TODO - be careful here! fix this later! info_hash() returns the info-hash of the torrent.
-			  If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
-			   the returned value is undefined. */
-			std::stringstream ss_info_hash;
-			ss_info_hash << torrent->get_handle().status().info_hash;
-			
-			tree.add_child(ss_info_hash.str(), child);
-		}
+				/* TODO - be careful here! fix this later! info_hash() returns the info-hash of the torrent.
+				  If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
+				   the returned value is undefined. */
+				std::stringstream ss_info_hash;
+				ss_info_hash << torrent->get_handle().status().info_hash;
+				
+				tree.add_child(ss_info_hash.str(), child);
+			}
+	
+			std::stringstream str_stream;
+			boost::property_tree::write_json(str_stream, tree);
 
-		std::stringstream str_stream;
-		write_json(str_stream, tree);
-
-		string json = str_stream.str();
+			std::string json = str_stream.str();
 		
-		*response << "HTTP/1.1 200 OK\r\nContent-Length: " << json.length() << "\r\n\r\n"
-					<< json;
+			*response << "HTTP/1.1 200 OK\r\nContent-Length: " << json.length() << "\r\n\r\n"
+					<< json;		
+		}
+		catch(const std::exception &e) {
+			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
+						<< e.what();
+		}
 	};
 	
 
 	/* TODO - implement this. This is the request that is made by the client to verify that a torrent with a id or torrent_hash was in fact removed after de client tried to remove it using the DELETE /torrent/remove method. This sends back the status to the user. Possible status are:
 	 could not delete, still deleting, deleted succesfully. Make it possible to verify multiple ids (or info hashes) at once */ 
-	server.resource["^/torrent/removed$"]["GET"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+	server.resource["^/torrent/removed$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try{
 		
 		}
-		catch(const exception &e) {
+		catch(const std::exception &e) {
 			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 						<< e.what();
 		}
 	};
 	
 	/* TODO - change this to accept multiple torrent ids/remove_data to remove them all at once */
-	server.resource["^/torrent/remove$"]["DELETE"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+	server.resource["^/torrent/remove$"]["DELETE"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {
 			
 			SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-			int id = stoi(query.find("id")->second);
+			const unsigned int id = stoi(query.find("id")->second);
 			bool remove_data;
 		  	std::istringstream(query.find("remove_data")->second) >> std::boolalpha >> remove_data;
 			bool result = torrent_manager.remove_torrent(id, remove_data);
@@ -145,7 +130,7 @@ void RestAPI::define_resources() {
 						<< json;
 			}	
 		}
-		catch(const exception &e) {
+		catch(const std::exception &e) {
 			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 						<< e.what();
 		}		
@@ -155,10 +140,8 @@ void RestAPI::define_resources() {
 	/* POST request resource - adds new torrent from .torrent file */
 	// TODO - what if torrent file (or POST content) is not valid?
 	// Maybe there is a way to receive multiple files
-	server.resource["^/torrent/add_file$"]["POST"] = [&](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+	server.resource["^/torrent/add_file$"]["POST"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {
-			
-
 			/* Generate random name for .torrent file */
 			std::string name;
 			do {
@@ -168,7 +151,7 @@ void RestAPI::define_resources() {
 
 			/* Write .torrent file */
 			auto content = request->content.string();
-			ofstream file;
+			std::ofstream file;
 			// TODO - what if there is no permission to write file ?
 			file.open(torrent_file_path + name, std::ofstream::out);
 			file << content;
@@ -183,21 +166,21 @@ void RestAPI::define_resources() {
 						<< "Content-Length: " << json.length() << "\r\n\r\n"
 						<< json;
 		}
-		catch(const exception &e) {
+		catch(const std::exception &e) {
 			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 						<< e.what();
 		}
 	};
 
 	/* Default webserver used to access webUI. http://localhost:port/. */
-	server.default_resource["GET"] = [](shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request) {
+	server.default_resource["GET"] = [](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {
 			auto web_root_path = boost::filesystem::canonical("webUI");
 			auto path = boost::filesystem::canonical(web_root_path / request->path);
 			// Check if path is within web_root_path
-			if(distance(web_root_path.begin(), web_root_path.end()) > distance(path.begin(), path.end()) ||
-			!equal(web_root_path.begin(), web_root_path.end(), path.begin()))
-				throw invalid_argument("path must be within root path");
+			if(std::distance(web_root_path.begin(), web_root_path.end()) > std::distance(path.begin(), path.end()) ||
+			!std::equal(web_root_path.begin(), web_root_path.end(), path.begin()))
+				throw std::invalid_argument("path must be within root path");
 			if(boost::filesystem::is_directory(path))
 				path /= "index.html";
 
@@ -226,31 +209,31 @@ void RestAPI::define_resources() {
 			//    }
 			#endif
 
-			auto ifs = make_shared<ifstream>();
-			ifs->open(path.string(), ifstream::in | ios::binary | ios::ate);
+			auto ifs = std::make_shared<std::ifstream>();
+			ifs->open(path.string(), std::ifstream::in | std::ios::binary | std::ios::ate);
 
 			if(*ifs) {
 				auto length = ifs->tellg();
-				ifs->seekg(0, ios::beg);
+				ifs->seekg(0, std::ios::beg);
 
-				header.emplace("Content-Length", to_string(length));
+				header.emplace("Content-Length", std::to_string(length));
 				response->write(header);
 
 				// Trick to define a recursive function within this scope (for your convenience)
 				class FileServer {
 				public:
-					static void read_and_send(const shared_ptr<HttpServer::Response> &response, const shared_ptr<ifstream> &ifs) {
+					static void read_and_send(const std::shared_ptr<HttpServer::Response> &response, const std::shared_ptr<std::ifstream> &ifs) {
 						// Read and send 128 KB at a time
-						static vector<char> buffer(131072); // Safe when server is running on one thread
-						streamsize read_length;
+						static std::vector<char> buffer(131072); // Safe when server is running on one thread
+						std::streamsize read_length;
 						if((read_length = ifs->read(&buffer[0], buffer.size()).gcount()) > 0) {
 							response->write(&buffer[0], read_length);
-							if(read_length == static_cast<streamsize>(buffer.size())) {
+							if(read_length == static_cast<std::streamsize>(buffer.size())) {
 								response->send([response, ifs](const SimpleWeb::error_code &ec) {
 									if(!ec)
 										read_and_send(response, ifs);
 									else
-										cerr << "Connection interrupted" << endl;
+										std::cerr << "Connection interrupted" << std::endl;
 								});
 							}
 						}
@@ -259,9 +242,9 @@ void RestAPI::define_resources() {
 				FileServer::read_and_send(response, ifs);
 			}
 			else
-				throw invalid_argument("could not read file");
+				throw std::invalid_argument("could not read file");
 			}
-		catch(const exception &e) {
+		catch(const std::exception &e) {
 			response->write(SimpleWeb::StatusCode::client_error_bad_request, "Could not open path " + request->path + ": " + e.what());
 		}
 	};

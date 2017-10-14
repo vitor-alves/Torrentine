@@ -4,17 +4,15 @@
 #include <iostream>
 #include <cstddef>
 
-//boost::property_tree::ptree ConfigManager::config_pt; 
-
 void ConfigManager::save_config() {
-	write_ini("config/config.ini", config_pt);
+	boost::property_tree::ini_parser::write_ini("config/config.ini", config_pt);
 }
 
 void ConfigManager::load_config() {
-	read_ini("config/config.ini", config_pt);
+	boost::property_tree::ini_parser::read_ini("config/config.ini", config_pt);
 }
 
-std::string ConfigManager::get_config(std::string config_name) {
+const std::string ConfigManager::get_config(std::string config_name) {
 	return config_pt.get<std::string>(config_name);
 }
 
