@@ -107,6 +107,11 @@ void RestAPI::define_resources() {
 		try {
 			
 			SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
+			/* If any of the parameters do not exist, send an error response */
+		       	/* TODO - optimize this so there is no need to call query.find() here and in other parts of this code below.
+			 * Store value in variable. Does any other function needs this too? Take a look */	
+			if( query.find("id") == query.end() || query.find("remove_data") == query.end() )
+				throw std::invalid_argument("Invalid parameters");
 			const unsigned int id = stoi(query.find("id")->second);
 			bool remove_data;
 		  	std::istringstream(query.find("remove_data")->second) >> std::boolalpha >> remove_data;
