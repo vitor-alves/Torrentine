@@ -13,8 +13,8 @@ private:
 public:
 	void set_handle(lt::torrent_handle handle);
 	lt::torrent_handle get_handle();
-	const unsigned int get_id();
-	Torrent(const unsigned int id);
+	const unsigned long int get_id();
+	Torrent(const unsigned long int id);
 	~Torrent();
 };
 

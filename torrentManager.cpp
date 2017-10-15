@@ -3,7 +3,7 @@
 #include "torrentManager.h"
 
 TorrentManager::TorrentManager() {
-
+	greatest_id = 1;
 }
 
 TorrentManager::~TorrentManager() {
@@ -11,7 +11,8 @@ TorrentManager::~TorrentManager() {
 		delete torrent;
 	}
 
-	session.~session(); // TODO - make this async
+	// This can be made async if needed.
+	session.~session();
 }
 
 // TODO - treat errors on error_code, finding file etc
@@ -62,7 +63,6 @@ void TorrentManager::update_torrent_console_view() {
 	std::cout << std::endl;
 }
 
-// TODO - Put all possible alerts here.
 /* Checks for new alerts and reacts to them */ 
 void TorrentManager::check_alerts() {
 	std::vector<lt::alert*> alerts;
@@ -112,16 +112,15 @@ const std::vector<Torrent*>& TorrentManager::get_torrents() {
 	return torrents;
 }
 
-/* TODO - this method is really dumb and is temporary. Do something better to create ID. This is so bad that a collision with
-deleted torrent IDs may happen. If you delete the torrent with the highest ID and add a new one they will have the same ID =(
-They should be unique. */ 
-const unsigned int TorrentManager::generate_torrent_id() {
-	return torrents.size()+1; 
+const unsigned long int TorrentManager::generate_torrent_id() {
+	unsigned long int id = greatest_id;
+	greatest_id++;
+	return id; 
 }
 
 // Marks the torrent for removal. Returns true if torrent is found and is marked for removal. Returns false if not.
 // An torrent_deleted_alert is posted when the removal occurs 
-bool TorrentManager::remove_torrent(const unsigned int id, bool remove_data) {
+bool TorrentManager::remove_torrent(const unsigned long int id, bool remove_data) {
 	// TODO - this is sooooo unefficient. Use a Map instead of Vector to store torrents and change this code.
 	for(std::vector<Torrent*>::iterator it = torrents.begin(); it != torrents.end(); it++) {
 		if((*it)->get_id() == id) {

@@ -16,7 +16,8 @@ namespace lt = libtorrent;
 class TorrentManager {
 private:
 	lt::session session;
-	std::vector<Torrent*> torrents;	
+	std::vector<Torrent*> torrents;
+	unsigned long int greatest_id;	
 
 public:
 	TorrentManager();
@@ -25,8 +26,8 @@ public:
 	void check_alerts();
 	void update_torrent_console_view();
 	const std::vector<Torrent*>& get_torrents();
-	const unsigned int generate_torrent_id();
-	bool remove_torrent(unsigned int id, bool remove_data);
+	const unsigned long int generate_torrent_id();
+	bool remove_torrent(unsigned long int id, bool remove_data);
 };
 
 #endif
