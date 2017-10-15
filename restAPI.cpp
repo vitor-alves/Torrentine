@@ -89,19 +89,6 @@ void RestAPI::define_resources() {
 		}
 	};
 	
-
-	/* TODO - implement this. This is the request that is made by the client to verify that a torrent with a id or torrent_hash was in fact removed after de client tried to remove it using the DELETE /torrent/remove method. This sends back the status to the user. Possible status are:
-	 could not delete, still deleting, deleted succesfully. Make it possible to verify multiple ids (or info hashes) at once */ 
-	server.resource["^/torrent/removed$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-		try{
-		
-		}
-		catch(const std::exception &e) {
-			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
-						<< e.what();
-		}
-	};
-	
 	/* TODO - change this to accept multiple torrent ids/remove_data to remove them all at once */
 	server.resource["^/torrent/remove$"]["DELETE"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {
@@ -118,7 +105,8 @@ void RestAPI::define_resources() {
 		  	std::istringstream(query.find("remove_data")->second) >> std::boolalpha >> remove_data;
 			bool result = torrent_manager.remove_torrent(id, remove_data);
 			
-			// TODO - this is what I am doing. Document this somehow. view the GET /torrent/removed above!
+			// TODO - this is what I am doing. Document this somehow. Im not creating a method for the client to verify if the torrent was
+			// in fact deleted for now. Maybe I will in the future.
 			/* https://www.safaribooksonline.com/library/view/restful-web-services/9780596809140/ch01s10.html */
 			std::string json;
 			if(result == true) {

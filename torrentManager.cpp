@@ -73,12 +73,12 @@ void TorrentManager::check_alerts() {
 		//std::cout << a->message() << "\n" << std::endl;
 		/* Finished */
 		if (lt::alert_cast<lt::torrent_finished_alert>(a)) {
-			// TODO - goto done;
+		
 		}
 		/* Error */
 		else if (lt::alert_cast<lt::torrent_error_alert>(a)) {
 			std::cout << "ALERT ERROR" << std::endl; // TODO - log
-			exit(1);
+			exit(1); // TODO - come on, I can do better than this
 		}
 		/* Add torrent */
 		else if (lt::alert_cast<lt::add_torrent_alert>(a)) {
@@ -92,13 +92,7 @@ void TorrentManager::check_alerts() {
 		/* Torrent removed */
 		else if (lt::alert_cast<lt::torrent_removed_alert>(a)) {
 			lt::torrent_removed_alert const * a_temp = lt::alert_cast<lt::torrent_removed_alert>(a);
-			/*  TODO - What should I do when this alert comes ?
-			the client who request using the API. Received an 202 Accepted as response since
-			the actual torrent removal is async. What if he needs to know wether the removal happened or not?
-			Should I store the info here in a data structure for future possible API requests or not ?
-			view GET /torrent/removed and DELETE /torrent/remove in restAPI.cpp. The /torrent/removed will get its info 
-			from here somehow
-			http://www.libtorrent.org/reference-Alerts.html#torrent-removed-alert */
+			// TODO - log this
 		}
 		/* Torrent deleted */
 		if (lt::alert_cast<lt::torrent_deleted_alert>(a)) {
