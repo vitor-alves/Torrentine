@@ -30,13 +30,14 @@ void RestAPI::start_server() {
 	server_thread = new std::thread( [this](){ server.start(); } );
 
 	server.on_error = [](std::shared_ptr<HttpServer::Request>, const SimpleWeb::error_code & ) {
-		// TODO - Handle errors here
+		// TODO - log this
 	};
 }
 
 void RestAPI::stop_server() {
 	// TODO - how safe is this ? If the thread gets killed in the middle of certain operations
 	// 	things may get corrupted.
+	server.~Server(); // TODO - I dont know if this is enough because I need to see what the destructor does
 	delete server_thread;
 } 
 
@@ -52,26 +53,22 @@ void RestAPI::define_resources() {
 			Used to write a JSON that is sent as response. */
 			boost::property_tree::ptree tree;
 			for(Torrent* torrent : torrents) {
-				// TODO - child is a exists only inside the "for", yet I am passing using the tree with the childs outside the for.
-				//			When add_child is called what happens to the child? How safe is this ?
-
-				// TODO - assure those values exist for EVERY handle. Read the docs to understand.
 				boost::property_tree::ptree child;
-				child.put("name", torrent->get_handle().status().name);
-				child.put("down_rate", torrent->get_handle().status().download_rate);
-				child.put("up_rate", torrent->get_handle().status().upload_rate);
-				child.put("progress", torrent->get_handle().status().progress);
-				child.put("down_total",torrent->get_handle().status().total_download);
-				child.put("up_total", torrent->get_handle().status().total_upload);
-				child.put("seeds", torrent->get_handle().status().num_seeds);
-				child.put("peers", torrent->get_handle().status().num_peers);
-
+				lt::torrent_status status = torrent->get_handle().status();
+				
+				child.put("name", status.name);
+				child.put("down_rate", status.download_rate);
+				child.put("up_rate", status.upload_rate);
+				child.put("progress", status.progress);
+				child.put("down_total",status.total_download);
+				child.put("up_total", status.total_upload);
+				child.put("seeds", status.num_seeds);
+				child.put("peers", status.num_peers);
 				/* TODO - be careful here! fix this later! info_hash() returns the info-hash of the torrent.
 				  If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
 				   the returned value is undefined. */
 				std::stringstream ss_info_hash;
-				ss_info_hash << torrent->get_handle().status().info_hash;
-				
+				ss_info_hash << status.info_hash;
 				tree.add_child(ss_info_hash.str(), child);
 			}
 	
@@ -90,24 +87,26 @@ void RestAPI::define_resources() {
 	};
 	
 	/* TODO - change this to accept multiple torrent ids/remove_data to remove them all at once */
+	/* TODO - This is what I am doing. Document this somehow. Im not creating a method for the client to verify if the torrent was
+			 in fact deleted for now. Maybe I will in the future.
+			 https://www.safaribooksonline.com/library/view/restful-web-services/9780596809140/ch01s10.html */
 	server.resource["^/torrent/remove$"]["DELETE"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {
 			
 			SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-			/* If any of the parameters do not exist, send an error response */
-		       	/* TODO - optimize this so there is no need to call query.find() here and in other parts of this code below.
-			 * Store value in variable. Does any other function needs this too? Take a look
-			 * Maybe I need to verify is the values are valid also. Its possible to send the parameters with any character/number */	
+			 /* Store value in variable. Does any other function needs this too? Take a look
+			 * Maybe I need to verify is the values are valid also. Its possible to send the parameters with any character/number */
+
+			/* If any of the parameters do not exist, send an error response */	
 			if( query.find("id") == query.end() || query.find("remove_data") == query.end() )
 				throw std::invalid_argument("Invalid parameters");
+			
+			/* Remove torrent */
 			const unsigned long int id = stoul(query.find("id")->second);
 			bool remove_data;
 		  	std::istringstream(query.find("remove_data")->second) >> std::boolalpha >> remove_data;
 			bool result = torrent_manager.remove_torrent(id, remove_data);
-			
-			// TODO - this is what I am doing. Document this somehow. Im not creating a method for the client to verify if the torrent was
-			// in fact deleted for now. Maybe I will in the future.
-			/* https://www.safaribooksonline.com/library/view/restful-web-services/9780596809140/ch01s10.html */
+				
 			std::string json;
 			if(result == true) {
 				json = "{\"status\":\"An attempt to remove the torrent will be made\"}";

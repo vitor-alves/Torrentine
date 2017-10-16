@@ -1,6 +1,7 @@
 #include <random>
 #include <string>
 #include <sstream>
+#include "utility.h"
 
 /* Generate random string */
 std::string randomString(std::string chars, int size) {
@@ -12,3 +13,4 @@ std::string randomString(std::string chars, int size) {
 	}
 	return ss.str();
 }
+
