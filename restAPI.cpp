@@ -138,7 +138,7 @@ void RestAPI::define_resources() {
 			/* Generate random name for .torrent file */
 			std::string name;
 			do {
-				name = randomString("1234567890", 20) + ".torrent";
+				name = random_string("1234567890", 20) + ".torrent";
 			}
 			while(boost::filesystem::exists(torrent_file_path + name));
 

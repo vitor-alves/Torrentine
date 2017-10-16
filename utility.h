@@ -1,4 +1,4 @@
 #include "torrent.h"
 #include <vector>
 
-std::string randomString(std::string chars, int size);
+std::string random_string(std::string chars, int size);

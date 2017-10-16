@@ -4,7 +4,7 @@
 #include "utility.h"
 
 /* Generate random string */
-std::string randomString(std::string chars, int size) {
+std::string random_string(std::string chars, int size) {
 	std::random_device rgn;
 	std::uniform_int_distribution<> index_dist(0, (chars.size()-1));
 	std::stringstream ss;
