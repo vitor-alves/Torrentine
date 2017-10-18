@@ -2,53 +2,46 @@
 #include <chrono>
 #include <sstream>
 #include <unordered_map>
+#include <cwchar>
 #include "restAPI.h"
 #include "torrentManager.h"
 #include "config.h"
-#include "lib/spdlog/spdlog.h"
+#include "lib/plog/Log.h"
 
 int main(int argc, char const* argv[])
 {
-	ConfigManager config;	
-	std::shared_ptr<spdlog::logger> log;
-	std::string log_file_path = ".";
-	size_t log_max_size = 5*1024*1024; // 5MB
-	size_t log_max_files = 3;
-	std::string download_path = ".";
-	spdlog::level::level_enum log_level = spdlog::level::debug;
 
-	std::unordered_map<std::string, spdlog::level::level_enum> map_log_level({{"trace",spdlog::level::trace},
-		       			{"debug",spdlog::level::debug},
-					{"info",spdlog::level::info},
-					{"warn",spdlog::level::warn},
-					{"error",spdlog::level::err},
-					{"critical",spdlog::level::critical},
-					{"off",spdlog::level::off}
+	ConfigManager config;	
+	//wchar_t* log_file_path = L"./log/bitsleek-log.txt"; // TODO - use this
+	size_t log_max_size = 5*1024*1024; // 5MB
+	int log_max_files = 3;
+	std::string download_path = ".";
+	plog::Severity log_severity = plog::Severity::debug;
+
+	std::unordered_map<std::string, plog::Severity> map_log_severity({{"none",plog::Severity::none},
+		       			{"fatal",plog::Severity::fatal},
+					{"error",plog::Severity::error},
+					{"warning",plog::Severity::warning},
+					{"info",plog::Severity::info},
+					{"debug",plog::Severity::debug},
+					{"verbose",plog::Severity::verbose}
 					});
 	try {
 		std::stringstream sstream;
-		log_file_path = config.get_config("log.file_path");
+		//log_file_path = config.get_config("log.file_path");
 		sstream = std::stringstream(config.get_config("log.max_size"));
 		sstream >> log_max_size;
 		sstream = std::stringstream(config.get_config("log.max_files"));
 		sstream >> log_max_files;
-		if(map_log_level.find(config.get_config("log.level")) != map_log_level.end())
-			log_level = map_log_level.find(config.get_config("log.level"))->second;
+		if(map_log_severity.find(config.get_config("log.severity")) != map_log_severity.end()) // TODO - test if its working
+			log_severity = map_log_severity.find(config.get_config("log.severity"))->second;
 	}
 	catch(const boost::property_tree::ptree_error &e) {
 		std::cerr << e.what() << std::endl; 
 	}
-	try {   
-		size_t queue_size = 4096; // Queue size must be power of 2
-		spdlog::set_async_mode(queue_size, spdlog::async_overflow_policy::block_retry, nullptr, std::chrono::seconds(2));	
-		spdlog::set_level(log_level);
-		log = spdlog::rotating_logger_mt("Bitsleek", log_file_path, log_max_size, log_max_files);
-		log->flush_on(spdlog::level::err);	
-	}
-	catch (const spdlog::spdlog_ex& ex) {
-		std::cerr << "Log initialization failed: " << ex.what() << std::endl;
-	}	
-	log->info("Starting Bitsleek");
+	plog::init(log_severity, "log/bitsleek-log.txt", log_max_size, log_max_files);
+
+	LOG_DEBUG << "Starting Bitsleek";
 
 	TorrentManager torrent_manager;
 	
@@ -83,20 +76,17 @@ int main(int argc, char const* argv[])
 		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	}
 
-	log->info("Closing Bitsleek");
+	//log->info("Closing Bitsleek");
 	try {
-		log->info("Saving config");
+	//	log->info("Saving config");
 		config.save_config(); }
 	catch(boost::property_tree::ptree_error &e) { 
 		std::cerr << e.what() << std::endl;
-		log->error(e.what());
+	//	log->error(e.what());
 	}
 	
-	log->debug("Stopping API");
+	//log->debug("Stopping API");
 	api.stop_server();
 
-	log->debug("Dropping all loggers"); 
-	spdlog::drop_all();
-	
 	return 0;
 }
