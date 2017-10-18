@@ -12,8 +12,10 @@ int main(int argc, char const* argv[])
 	ConfigManager config;
 	TorrentManager torrent_manager;
 	
-	initialize_log(config);			
+	initialize_log(config);
 	
+	LOG_INFO << "Starting Bitsleek";
+
 	add_test_torrents(torrent_manager, config);
 
 	RestAPI api(config, torrent_manager);
