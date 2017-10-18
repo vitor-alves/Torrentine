@@ -33,3 +33,4 @@ bitsleek
 test/test_download/
 *.swp
 *.vim
+log/
