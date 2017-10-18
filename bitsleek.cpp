@@ -12,34 +12,34 @@ int main(int argc, char const* argv[])
 {
 
 	ConfigManager config;	
-	//wchar_t* log_file_path = L"./log/bitsleek-log.txt"; // TODO - use this
+	std::string log_file_path = "./log/bitsleek-log.txt";
 	size_t log_max_size = 5*1024*1024; // 5MB
-	int log_max_files = 3;
-	std::string download_path = ".";
+	int log_max_files = 3;	
 	plog::Severity log_severity = plog::Severity::debug;
-
+	std::string download_path = "./";
+	
 	std::unordered_map<std::string, plog::Severity> map_log_severity({{"none",plog::Severity::none},
 		       			{"fatal",plog::Severity::fatal},
 					{"error",plog::Severity::error},
 					{"warning",plog::Severity::warning},
 					{"info",plog::Severity::info},
 					{"debug",plog::Severity::debug},
-					{"verbose",plog::Severity::verbose}
-					});
+					{"verbose",plog::Severity::verbose}});
 	try {
 		std::stringstream sstream;
-		//log_file_path = config.get_config("log.file_path");
+		log_file_path = config.get_config("log.file_path");
 		sstream = std::stringstream(config.get_config("log.max_size"));
 		sstream >> log_max_size;
 		sstream = std::stringstream(config.get_config("log.max_files"));
 		sstream >> log_max_files;
-		if(map_log_severity.find(config.get_config("log.severity")) != map_log_severity.end()) // TODO - test if its working
-			log_severity = map_log_severity.find(config.get_config("log.severity"))->second;
+		std::unordered_map<std::string, plog::Severity>::iterator it_log_severity = map_log_severity.find(config.get_config("log.severity"));
+		if(it_log_severity != map_log_severity.end())
+			log_severity = it_log_severity->second;
 	}
 	catch(const boost::property_tree::ptree_error &e) {
 		std::cerr << e.what() << std::endl; 
 	}
-	plog::init(log_severity, "log/bitsleek-log.txt", log_max_size, log_max_files);
+	plog::init(log_severity, log_file_path.c_str(), log_max_size, log_max_files);
 
 	LOG_DEBUG << "Starting Bitsleek";
 
@@ -76,16 +76,17 @@ int main(int argc, char const* argv[])
 		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	}
 
-	//log->info("Closing Bitsleek");
+	LOG_INFO << "Closing Bitsleek";
+
 	try {
-	//	log->info("Saving config");
+		LOG_DEBUG << "Saving config";
 		config.save_config(); }
 	catch(boost::property_tree::ptree_error &e) { 
 		std::cerr << e.what() << std::endl;
-	//	log->error(e.what());
+		LOG_ERROR << e.what();
 	}
 	
-	//log->debug("Stopping API");
+	LOG_DEBUG << "Stopping API";
 	api.stop_server();
 
 	return 0;
