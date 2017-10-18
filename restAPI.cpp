@@ -42,6 +42,7 @@ void RestAPI::stop_server() {
 } 
 
 /* Define HTTP resources */
+/// Warning: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
 
 	/* GET request resource - returns json containing all torrents */

@@ -1,4 +1,4 @@
-#include "lib/simple-web-server/server_http.hpp"
+#include "simple-web-server/server_http.hpp"
 #include "torrentManager.h"
 #include "config.h"
 
