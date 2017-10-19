@@ -79,6 +79,6 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 		LOG_ERROR << "Could not get config: " << e.what();
 		return;
 	}
-	torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
-	torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
+	torrent_manager.add_torrent_async("./test/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
+	torrent_manager.add_torrent_async("./test/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
 }
