@@ -113,7 +113,8 @@ const unsigned long int TorrentManager::generate_torrent_id() {
 	return id; 
 }
 
-// Returns true if torrent is found and is marked for removal. Returns false if not.
+// Returns true if torrent is found and has been marked for removal. Returns false if not.
+// An torrent_deleted_alert is posted when the removal occurs 
 bool TorrentManager::remove_torrent(const unsigned long int id, bool remove_data) {
 	// TODO - this is sooooo unefficient. Use a Map instead of Vector to store torrents and change this code.
 	for(std::vector<Torrent*>::iterator it = torrents.begin(); it != torrents.end(); it++) {
