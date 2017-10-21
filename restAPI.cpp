@@ -13,6 +13,7 @@
 #include "lib/plog/Log.h"
 #include "lib/rapidjson/document.h"
 #include "lib/rapidjson/prettywriter.h"
+#include "lib/rapidjson/writer.h"
 #include "lib/rapidjson/stringbuffer.h"
 
 RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
@@ -49,6 +50,7 @@ void RestAPI::stop_server() {
 	delete server_thread;
 } 
 
+// TODO - check if a list of IDs is present. If it is, return only info of those torrents
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
 	server.resource["^/torrent$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
@@ -56,7 +58,6 @@ void RestAPI::define_resources() {
 			const std::vector<Torrent*> torrents = torrent_manager.get_torrents();
 			rapidjson::Document document;
 			document.SetObject();
-			// Must pass an allocator when the object may need to allocate memory
 			rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 			for(Torrent* torrent : torrents) {
 				lt::torrent_status status = torrent->get_handle().status();	
@@ -86,7 +87,6 @@ void RestAPI::define_resources() {
 			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
 			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
 			document.Accept(writer);
-
 			std::string json = string_buffer.GetString();
 		
 			*response << "HTTP/1.1 200 OK\r\nContent-Length: " << json.length() << "\r\n\r\n"
@@ -95,6 +95,7 @@ void RestAPI::define_resources() {
 		catch(const std::exception &e) {
 			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 						<< e.what();
+			LOG_ERROR << "HTTP Bad Request: " << e.what();
 		}
 	};
 	
@@ -102,79 +103,97 @@ void RestAPI::define_resources() {
 	/* TODO - This is what I am doing. Document this somehow. Im not creating a method for the client to verify if the torrent was
 			 in fact deleted for now. Maybe I will in the future.
 			 https://www.safaribooksonline.com/library/view/restful-web-services/9780596809140/ch01s10.html */
-	server.resource["^/torrent/remove$"]["DELETE"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	server.resource["^/torrent$"]["DELETE"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {
 			
 			SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-			 /* Store value in variable. Does any other function needs this too? Take a look
-			 * Maybe I need to verify is the values are valid also. Its possible to send the parameters with any character/number */
-
-			/* If any of the parameters do not exist, send an error response */	
 			if( query.find("id") == query.end() || query.find("remove_data") == query.end() )
 				throw std::invalid_argument("Invalid parameters");
 			
-			/* Remove torrent */
 			const unsigned long int id = stoul(query.find("id")->second);
 			bool remove_data;
 		  	std::istringstream(query.find("remove_data")->second) >> std::boolalpha >> remove_data;
 			bool result = torrent_manager.remove_torrent(id, remove_data);
-				
-			std::string json;
-			if(result == true) {
-				json = "{\"status\":\"An attempt to remove the torrent will be made\"}";
-				*response << "HTTP/1.1 202 Accepted\r\n"
-						<< "Content-Length: " << json.length() << "\r\n\r\n"
-						<< json;
+			
+			rapidjson::Document document;
+			document.SetObject();
+			rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+			std::string http_status;
+			if(result == true) {	
+				document.AddMember("status", "An attempt to remove the torrent will be made asynchronously", allocator);
+				http_status = "HTTP/1.1 202 Accepted\r\n";
 			}
-			else {
-				std::stringstream ss;
-				ss << "{\"status\":\"Could not find a torrent with id: " << id << "\"}";
-				json = ss.str();
-				*response << "HTTP/1.1 404 Not Found\r\n"
-						<< "Content-Length: " << json.length() << "\r\n\r\n"
-						<< json;
-			}	
+			else {	
+				document.AddMember("status", "Could not find torrent", allocator);
+				http_status = "HTTP/1.1 404 Not Found\r\n";
+			}
+			document.AddMember("id", id, allocator);
+
+			rapidjson::StringBuffer string_buffer;
+			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
+			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+			document.Accept(writer);
+			std::string json = string_buffer.GetString();
+
+			*response << http_status
+					<< "Content-Length: " << json.length() << "\r\n\r\n"
+					<< json;
 		}
 		catch(const std::exception &e) {
 			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 						<< e.what();
+			LOG_ERROR << "HTTP Bad Request: " << e.what();
 		}		
 	
 	};
 
 	/* POST request resource - adds new torrent from .torrent file */
-	// TODO - what if torrent file (or POST content) is not valid?
-	// Maybe there is a way to receive multiple files
+	// TODO - Maybe there is a way to receive multiple files
 	server.resource["^/torrent/add_file$"]["POST"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {
-			/* Generate random name for .torrent file */
+			// Generate .torrent file from content
 			std::string name;
 			do {
 				name = random_string("1234567890", 20) + ".torrent";
 			}
 			while(boost::filesystem::exists(torrent_file_path + name));
-
-			/* Write .torrent file */
 			auto content = request->content.string();
 			std::ofstream file;
-			// TODO - what if there is no permission to write file ?
 			file.open(torrent_file_path + name, std::ofstream::out);
 			file << content;
 			file.close();
 
-			/* Add torrent */
 			bool success = torrent_manager.add_torrent_async(torrent_file_path + name, download_path);
-			// TODO - treat success or failure
-				
-			std::string json = "{file:\""+name+"\",success:\"true\"}";
 
-			*response << "HTTP/1.1 200 OK\r\n"
-						<< "Content-Length: " << json.length() << "\r\n\r\n"
-						<< json;
+			rapidjson::Document document;
+			document.SetObject();
+			rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+			std::string http_status;
+			if(success) {
+				document.AddMember("success", true, allocator);
+				document.AddMember("status", "An attempt to add the torrent will be made asynchronously", allocator);
+				http_status = "http/1.1 202 Accepted\r\n";
+			}	
+			else {
+				document.AddMember("success", false, allocator);	
+				document.AddMember("status", "Could not add torrent", allocator);
+				http_status = "http/1.1 400 Bad Request\r\n";
+			}
+
+			rapidjson::StringBuffer string_buffer;
+			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
+			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+			document.Accept(writer);
+			std::string json = string_buffer.GetString();
+			
+			*response << http_status
+					<< "Content-Length: " << json.length() << "\r\n\r\n"
+					<< json;
 		}
 		catch(const std::exception &e) {
 			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
-						<< e.what();
+						<< e.what();	
+			LOG_ERROR << "HTTP Bad Request: " << e.what();
 		}
 	};
 
@@ -252,6 +271,7 @@ void RestAPI::define_resources() {
 			}
 		catch(const std::exception &e) {
 			response->write(SimpleWeb::StatusCode::client_error_bad_request, "Could not open path " + request->path + ": " + e.what());
+			LOG_ERROR << "Could not open path " + request->path + ": " + e.what();
 		}
 	};
 }
