@@ -10,15 +10,25 @@
 #include "torrentManager.h"
 #include "config.h"
 #include "utility.h"
+#include "lib/plog/Log.h"
+#include "lib/rapidjson/document.h"
+#include "lib/rapidjson/prettywriter.h"
+#include "lib/rapidjson/stringbuffer.h"
 
 RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
-	server.config.port = stoi(config.get_config("api.port"));
-	
+	std::string api_port;
 	try {
 		torrent_file_path = config.get_config("directory.torrent_file_path");
-		download_path = config.get_config("directory.download_path"); }
-	catch(boost::property_tree::ptree_error &e) {
-		std::cerr << e.what() << std::endl; }	// TODO - Treat/Log this
+		download_path = config.get_config("directory.download_path"); 
+		api_port = config.get_config("api.port");
+	}
+	catch(const boost::property_tree::ptree_error &e) {
+		LOG_ERROR << e.what(); }
+	std::stringstream ss(api_port);
+	ss >> server.config.port;
+	if(ss.fail()) {
+		LOG_ERROR << "Problem with api port " << api_port <<" from config";
+	}	
 	define_resources();
 }		
 
@@ -29,54 +39,55 @@ RestAPI::~RestAPI() {
 void RestAPI::start_server() {
 	server_thread = new std::thread( [this](){ server.start(); } );
 
-	server.on_error = [](std::shared_ptr<HttpServer::Request>, const SimpleWeb::error_code & ) {
-		// TODO - log this
+	server.on_error = [](std::shared_ptr<HttpServer::Request> request, const SimpleWeb::error_code & ec) {
+		LOG_ERROR << ec.message();
 	};
 }
 
 void RestAPI::stop_server() {
-	// TODO - how safe is this ? If the thread gets killed in the middle of certain operations
-	// 	things may get corrupted.
-	server.~Server(); // TODO - I dont know if this is enough because I need to see what the destructor does
+	server.~Server();
 	delete server_thread;
 } 
 
-/* Define HTTP resources */
-/// Warning: do not add or remove resources after start() is called
+// WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
-
-	/* GET request resource - returns json containing all torrents */
 	server.resource["^/torrent$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-		try { 
+		try {	
 			const std::vector<Torrent*> torrents = torrent_manager.get_torrents();
-
-			/* Construct a property tree containing information from all torrents .
-			Used to write a JSON that is sent as response. */
-			boost::property_tree::ptree tree;
+			rapidjson::Document document;
+			document.SetObject();
+			// Must pass an allocator when the object may need to allocate memory
+			rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 			for(Torrent* torrent : torrents) {
-				boost::property_tree::ptree child;
-				lt::torrent_status status = torrent->get_handle().status();
+				lt::torrent_status status = torrent->get_handle().status();	
+				rapidjson::Value object(rapidjson::kObjectType);
+				rapidjson::Value temp_value;
 				
-				child.put("name", status.name);
-				child.put("down_rate", status.download_rate);
-				child.put("up_rate", status.upload_rate);
-				child.put("progress", status.progress);
-				child.put("down_total",status.total_download);
-				child.put("up_total", status.total_upload);
-				child.put("seeds", status.num_seeds);
-				child.put("peers", status.num_peers);
+				temp_value.SetString(status.name.c_str(), status.name.length(), allocator);
+				object.AddMember("name", temp_value, allocator); 
+				object.AddMember("down_rate", status.download_rate, allocator); 
+				object.AddMember("up_rate", status.upload_rate, allocator); 
+				object.AddMember("progress", status.progress, allocator); 
+				object.AddMember("down_total", status.total_download, allocator); 
+				object.AddMember("up_total", status.total_upload, allocator); 
+				object.AddMember("seeds", status.num_seeds, allocator); 
+				object.AddMember("peers", status.num_peers, allocator);
 				/* TODO - be careful here! fix this later! info_hash() returns the info-hash of the torrent.
 				  If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
 				   the returned value is undefined. */
 				std::stringstream ss_info_hash;
 				ss_info_hash << status.info_hash;
-				tree.add_child(ss_info_hash.str(), child);
+				std::string info_hash = ss_info_hash.str();
+				temp_value.SetString(info_hash.c_str(), info_hash.length(), allocator);
+				document.AddMember(temp_value, object, allocator);
 			}
-	
-			std::stringstream str_stream;
-			boost::property_tree::write_json(str_stream, tree);
 
-			std::string json = str_stream.str();
+			rapidjson::StringBuffer string_buffer;
+			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
+			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+			document.Accept(writer);
+
+			std::string json = string_buffer.GetString();
 		
 			*response << "HTTP/1.1 200 OK\r\nContent-Length: " << json.length() << "\r\n\r\n"
 					<< json;		

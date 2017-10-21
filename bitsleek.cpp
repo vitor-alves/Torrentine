@@ -30,7 +30,7 @@ int main(int argc, char const* argv[])
 		config.save_config();	
 		LOG_DEBUG << "Config Saved";
 	}
-	catch(boost::property_tree::ptree_error &e) { 
+	catch(const boost::property_tree::ptree_error &e) { 
 		std::cerr << e.what() << std::endl;
 		LOG_ERROR << e.what();
 	}
@@ -75,7 +75,7 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 		download_path = config.get_config("directory.download_path");
 		LOG_DEBUG << "Added test torrents";
 	}
-	catch(boost::property_tree::ptree_error &e) {
+	catch(const boost::property_tree::ptree_error &e) {
 		std::cerr << e.what() << std::endl;
 		LOG_ERROR << "Could not get config: " << e.what();
 		return;
