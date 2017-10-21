@@ -22,7 +22,7 @@ private:
 public:
 	TorrentManager();
 	~TorrentManager();
-	void add_torrent_async(const std::string filename,const std::string save_path);
+	bool add_torrent_async(const std::string filename,const std::string save_path);
 	void check_alerts();
 	void update_torrent_console_view();
 	const std::vector<Torrent*>& get_torrents();

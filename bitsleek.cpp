@@ -7,8 +7,7 @@
 #include "bitsleek.h"
 
 int main(int argc, char const* argv[])
-{
-	
+{	
 	ConfigManager config;
 	TorrentManager torrent_manager;
 	
@@ -28,8 +27,9 @@ int main(int argc, char const* argv[])
 	}
 
 	try {
-		LOG_DEBUG << "Saving config";
-		config.save_config(); }
+		config.save_config();	
+		LOG_DEBUG << "Config Saved";
+	}
 	catch(boost::property_tree::ptree_error &e) { 
 		std::cerr << e.what() << std::endl;
 		LOG_ERROR << e.what();
@@ -73,12 +73,13 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 
 	try {
 		download_path = config.get_config("directory.download_path");
+		LOG_DEBUG << "Added test torrents";
 	}
 	catch(boost::property_tree::ptree_error &e) {
 		std::cerr << e.what() << std::endl;
 		LOG_ERROR << "Could not get config: " << e.what();
 		return;
 	}
-	torrent_manager.add_torrent_async("./test/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
-	torrent_manager.add_torrent_async("./test/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
+	bool success_t1 = torrent_manager.add_torrent_async("./test/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
+	bool success_t2 = torrent_manager.add_torrent_async("./test/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
 }

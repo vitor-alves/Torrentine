@@ -152,8 +152,9 @@ void RestAPI::define_resources() {
 			file.close();
 
 			/* Add torrent */
-			torrent_manager.add_torrent_async(torrent_file_path + name, download_path);
-
+			bool success = torrent_manager.add_torrent_async(torrent_file_path + name, download_path);
+			// TODO - treat success or failure
+				
 			std::string json = "{file:\""+name+"\",success:\"true\"}";
 
 			*response << "HTTP/1.1 200 OK\r\n"
