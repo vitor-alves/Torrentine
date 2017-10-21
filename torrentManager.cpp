@@ -28,7 +28,7 @@ bool TorrentManager::add_torrent_async(const std::string filename, const std::st
 	lt::error_code ec;
 	int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
 	if(ec) {
-		LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message().c_str();
+		LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
 		return false;
 	}	
 	lt::add_torrent_params atp;
@@ -38,7 +38,7 @@ bool TorrentManager::add_torrent_async(const std::string filename, const std::st
 	atp.save_path = save_path;
 	session.async_add_torrent(atp);
 
-	LOG_DEBUG << "Torrent with filename " << filename << " marked for addition asynchronously";
+	LOG_INFO << "Torrent with filename " << filename << " marked for asynchronous addition";
 	return true;
 }
 
@@ -73,20 +73,20 @@ void TorrentManager::check_alerts() {
 			case lt::torrent_error_alert::alert_type:	
 			{
 				lt::torrent_error_alert const* a_temp = lt::alert_cast<lt::torrent_error_alert>(a);
-				LOG_ERROR << "torrent_error_alert: " << a_temp->message();
+				LOG_ERROR << "torrent_error_alert: " << a_temp->error.message();
 				break;
 			}
 			case lt::add_torrent_alert::alert_type: 
 			{
 				lt::add_torrent_alert const* a_temp = lt::alert_cast<lt::add_torrent_alert>(a);
 				if(a_temp->error) {
-					LOG_ERROR << "add_torrent_alert: " << a_temp->message().c_str();
+					LOG_ERROR << "add_torrent_alert: " << a_temp->error.message();
 					break;
 				}	
 				Torrent* torrent = new Torrent(generate_torrent_id());
 				torrent->set_handle(a_temp->handle);
 				torrents.push_back(torrent);
-				LOG_INFO << "add_torrent_alert: " << a_temp->message().c_str();
+				LOG_INFO << "add_torrent_alert: " << a_temp->message();
 				break;
 			}
 			case lt::torrent_removed_alert::alert_type:
