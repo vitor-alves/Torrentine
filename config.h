@@ -11,7 +11,7 @@ private:
 public:
 	void save_config();
 	void load_config();
-	const std::string get_config(std::string name);
+	const std::string get_config(std::string name); // TODO - use templates to return different types instead of strings only
 	void set_config(std::string name, std::string value);
 	ConfigManager();
 	~ConfigManager();

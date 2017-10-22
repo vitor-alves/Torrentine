@@ -1,5 +1,3 @@
-#define BOOST_SPIRIT_THREADSAFE
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/filesystem.hpp>
 #include <fstream>
 #include <vector>

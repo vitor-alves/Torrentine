@@ -21,7 +21,7 @@ int main(int argc, char const* argv[])
 	api.start_server();
 	
 	while(true) {
-		//torrent_manager.update_torrent_console_view();
+		torrent_manager.update_torrent_console_view();
 		torrent_manager.check_alerts();
 		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	}
