@@ -28,6 +28,7 @@ public:
 	const std::vector<Torrent*>& get_torrents();
 	const unsigned long int generate_torrent_id();
 	bool remove_torrent(unsigned long int id, bool remove_data);
+	bool stop_torrent(unsigned long int id, bool force_stop);
 };
 
 #endif

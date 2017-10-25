@@ -54,7 +54,8 @@ void TorrentManager::update_torrent_console_view() {
 		std::cout << "t_up: " << torrent->get_handle().status().total_upload / 1000 << "Kb" << " / ";
 		std::cout << "seeds: " << torrent->get_handle().status().num_seeds<< " / ";
 		std::cout << "peers: " << torrent->get_handle().status().num_peers << " / " << std::endl;
-		std::cout << "ID: " << torrent->get_id() << " / " << std::endl;
+		std::cout << "id: " << torrent->get_id() << " / " << std::endl;
+		std::cout << "paused: " << torrent->get_handle().status().paused << " / " << std::endl;
 	}	
 	std::cout << std::endl;
 }
@@ -99,6 +100,11 @@ void TorrentManager::check_alerts() {
 		  		lt::torrent_deleted_alert const * a_temp = lt::alert_cast<lt::torrent_deleted_alert>(a);
 				break;
 			}
+			case lt::torrent_paused_alert::alert_type:
+			{
+		  		lt::torrent_paused_alert const * a_temp = lt::alert_cast<lt::torrent_paused_alert>(a);
+				break;
+			}
 		}
 	}	
 }
@@ -127,3 +133,20 @@ bool TorrentManager::remove_torrent(const unsigned long int id, bool remove_data
 	}	
 	return false;
 }
+
+
+bool TorrentManager::stop_torrent(const unsigned long int id, bool force_stop) {
+	// TODO - this is sooooo unefficient. Use a Map instead of Vector to store torrents and change this code.
+	for(std::vector<Torrent*>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+		if((*it)->get_id() == id) {
+			lt::torrent_handle handle = (*it)->get_handle();
+			if(force_stop)
+				handle.pause();
+			else
+				handle.pause(lt::torrent_handle::graceful_pause);
+			return true;	
+		}
+	}	
+	return false;
+}
+

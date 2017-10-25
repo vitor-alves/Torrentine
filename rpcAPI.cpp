@@ -48,9 +48,52 @@ void RestAPI::stop_server() {
 	delete server_thread;
 } 
 
-// TODO - check if a list of IDs is present. If it is, return only info of those torrents
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
+	// TODO - check if a list of IDs is present. If it is, return only info of those torrents
+	server.resource["^/torrent/stop$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+		try {
+			SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
+			if( query.find("id") == query.end() || query.find("force_stop") == query.end() )
+				throw std::invalid_argument("Invalid parameters");
+			
+			const unsigned long int id = stoul(query.find("id")->second);
+			bool force_stop;
+			std::istringstream(query.find("force_stop")->second) >> std::boolalpha >> force_stop;
+			bool result = torrent_manager.stop_torrent(id, force_stop);
+		
+			rapidjson::Document document;
+			document.SetObject();
+			rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+			std::string http_status;
+			if(result == true) {	
+				document.AddMember("status", "An attempt to pause the torrent will be made asynchronously", allocator);
+				http_status = "HTTP/1.1 202 Accepted\r\n";
+			}
+			else {	
+				document.AddMember("status", "Could not find torrent", allocator);
+				http_status = "HTTP/1.1 404 Not Found\r\n";
+			}
+			document.AddMember("id", id, allocator);
+
+			rapidjson::StringBuffer string_buffer;
+			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
+			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+			document.Accept(writer);
+			std::string json = string_buffer.GetString();
+
+			*response << http_status
+					<< "Content-Length: " << json.length() << "\r\n\r\n"
+					<< json;
+		}
+		catch(const std::exception &e) {
+			*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
+						<< e.what();
+			LOG_ERROR << "HTTP Bad Request: " << e.what();
+		}
+	};
+	
+	// TODO - check if a list of IDs is present. If it is, return only info of those torrents
 	server.resource["^/torrent$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {	
 			const std::vector<Torrent*> torrents = torrent_manager.get_torrents();
