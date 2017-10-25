@@ -17,7 +17,6 @@ int howdy(lua_State* state)
   // input arguments to our function. To be honest, I haven't checked if we
   // must, but at least in stack machines like the JVM, the stack will be
   // cleaned between each function call.
-
   lua_pushnumber(state, 123);
 
   // Let Lua know how many return values we've passed
@@ -36,22 +35,14 @@ void execute(const char* filename)
 {
   lua_State *state = luaL_newstate();
 
-  // Make standard libraries available in the Lua object
   luaL_openlibs(state);
   lua_register(state, "howdy", howdy);
 
-  int result;
-
-  // Load the program; this supports both source code and bytecode files.
-  result = luaL_loadfile(state, filename);
-
+  int result = luaL_loadfile(state, filename);
   if ( result != LUA_OK ) {
     print_error(state);
     return;
   }
-
-  // Finally, execute the program by calling into it.
-  // Change the arguments if you're not running vanilla Lua code.
 
   result = lua_pcall(state, 0, LUA_MULTRET, 0);
 

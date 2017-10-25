@@ -1,0 +1,14 @@
+sudo: required
+before_install:
+  - sudo apt-get install libtorrent libboost-all-dev
+
+language: cpp
+
+compiler:
+  - gcc
+
+install:
+  - "[ $CXX = g++ ] && export CXX=g++-6 || true"
+
+script:
+  - make
