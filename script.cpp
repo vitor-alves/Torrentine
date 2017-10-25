@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <lua.hpp>
-#include "macro.h"
+#include "script.h"
 
 int howdy(lua_State* state)
 {
@@ -55,7 +55,7 @@ void execute(const char* filename)
 int main(int argc, char** argv)
 {
 
-        execute("macros/test.lua");
+        execute("scripts/test.lua");
 
   return 0;
 }
