@@ -12,7 +12,8 @@ addons:
     - g++-4.8
     - libboost-all-dev
     - libtorrent-rasterbar-dev
-    - lua5.3
+    - liblua5.3-dev
+
 install:
   - if [ "$CXX" = "g++" ]; then export CXX="g++-4.8" CC="gcc-4.8"; fi
 
