@@ -4,7 +4,7 @@
 #ifdef HAVE_OPENSSL
 #include "crypto.hpp"
 #endif
-#include "restAPI.h"
+#include "rpcAPI.h"
 #include "torrentManager.h"
 #include "config.h"
 #include "utility.h"
