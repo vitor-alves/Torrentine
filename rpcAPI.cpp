@@ -77,7 +77,6 @@ void RestAPI::define_resources() {
 			document.AddMember("id", id, allocator);
 
 			rapidjson::StringBuffer string_buffer;
-			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
 			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
 			document.Accept(writer);
 			std::string json = string_buffer.GetString();
@@ -125,7 +124,6 @@ void RestAPI::define_resources() {
 			}
 
 			rapidjson::StringBuffer string_buffer;
-			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
 			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
 			document.Accept(writer);
 			std::string json = string_buffer.GetString();
@@ -171,7 +169,6 @@ void RestAPI::define_resources() {
 			document.AddMember("id", id, allocator);
 
 			rapidjson::StringBuffer string_buffer;
-			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
 			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
 			document.Accept(writer);
 			std::string json = string_buffer.GetString();
@@ -222,7 +219,6 @@ void RestAPI::define_resources() {
 			}
 
 			rapidjson::StringBuffer string_buffer;
-			// TODO - Change PrettyWriter to Writer on production. More suitable for network traffic.
 			rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
 			document.Accept(writer);
 			std::string json = string_buffer.GetString();
