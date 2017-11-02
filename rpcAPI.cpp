@@ -149,7 +149,7 @@ void RestAPI::define_resources() {
 			
 			SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
 			if( query.find("id") == query.end() || query.find("remove_data") == query.end() )
-				throw std::invalid_argument("Invalid parameters");
+				throw std::invalid_argument("Invalid or missing parameters in request");
 			
 			const unsigned long int id = stoul(query.find("id")->second);
 			bool remove_data;
