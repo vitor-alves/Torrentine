@@ -54,7 +54,7 @@ void RestAPI::test(std::shared_ptr<HttpServer::Response> response, std::shared_p
 
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
-	//server.resource["^/test$"]["GET"] =  boost::bind(&RestAPI::test, this, _1, _2);
+	server.resource["^/test$"]["GET"] =  std::bind(&RestAPI::test, this, std::placeholders::_1, std::placeholders::_2);
 
 	// TODO - check if a list of IDs is present. If it is, return only info of those torrents
 	server.resource["^/torrent/stop$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
