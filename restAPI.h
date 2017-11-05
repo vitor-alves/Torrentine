@@ -23,7 +23,8 @@ public:
 	RestAPI(ConfigManager config, TorrentManager& torrentManager);
 	~RestAPI();
 	void start_server();
-	void stop_server();	
+	void stop_server();
+	void test(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 };
 
 #endif

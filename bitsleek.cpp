@@ -3,7 +3,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <cwchar>
-#include "rpcAPI.h"
+#include "restAPI.h"
 #include "bitsleek.h"
 
 int main(int argc, char const* argv[])

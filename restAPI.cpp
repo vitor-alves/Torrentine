@@ -4,7 +4,7 @@
 #ifdef HAVE_OPENSSL
 #include "crypto.hpp"
 #endif
-#include "rpcAPI.h"
+#include "restAPI.h"
 #include "torrentManager.h"
 #include "config.h"
 #include "utility.h"
@@ -46,10 +46,16 @@ void RestAPI::start_server() {
 void RestAPI::stop_server() {
 	server.~Server();
 	delete server_thread;
-} 
+}
+
+void RestAPI::test(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << 0 << "\r\n\r\n";
+}
 
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
+	//server.resource["^/test$"]["GET"] =  boost::bind(&RestAPI::test, this, _1, _2);
+
 	// TODO - check if a list of IDs is present. If it is, return only info of those torrents
 	server.resource["^/torrent/stop$"]["GET"] = [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		try {
