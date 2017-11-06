@@ -30,16 +30,16 @@ bool file_to_buffer(std::vector<char> &buffer, const std::string filename) {
 	}
 }
 
-// Splits integer only string separated by 'delim'
-std::vector<unsigned long int> split_string_ulong(const std::string &str, char delim) {
-	std::vector<unsigned long int> ids;
+// Splits string of integers saparated by char 'delim'
+std::vector<unsigned long int> split_string_to_ulong(const std::string &str, char delim) {
+	std::vector<unsigned long int> numbers;
 	std::stringstream ss(str);
 
 	std::string item;
 	while(std::getline(ss, item, ',')) {
 		if(!item.empty()) {
-			ids.push_back(std::stoul(item));
+			numbers.push_back(std::stoul(item));
 		}
 	}
-	return ids;
+	return numbers;
 }

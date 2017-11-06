@@ -53,7 +53,7 @@ void RestAPI::stop_server() {
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
 	// /torrents/<id>/stop
-	server.resource["^/torrents/(?:([0-9,]*)/|)stop$"]["GET"] =
+	server.resource["^/session/torrents/(?:([0-9,]*)/|)stop$"]["PUT"] =
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_stop(response, request); };
 
@@ -76,24 +76,28 @@ void RestAPI::define_resources() {
 
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	try {
-		std::vector<unsigned long int> ids = split_string_ulong(request->path_match[1], ',');
+		std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 		
-		// TODO - finish this implementation. Use the ids vector.
-
 		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-		if( query.find("id") == query.end() || query.find("force_stop") == query.end() )
-			throw std::invalid_argument("Invalid parameters");
-		
-		const unsigned long int id = stoul(query.find("id")->second);
+		if(query.find("force_stop") == query.end() )
+			throw std::invalid_argument("invalid parameters");
 		bool force_stop;
 		std::istringstream(query.find("force_stop")->second) >> std::boolalpha >> force_stop;
-		bool result = torrent_manager.stop_torrent(id, force_stop);
-	
+
+		// TODO - finish this implementation. Return correct object based on jsonapi.org
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+		bool success = true;
+		for(unsigned long int id : ids) {
+			bool result = torrent_manager.stop_torrent(id, force_stop);
+			if(result == false)
+				success = false;
+			document.AddMember("id", id, allocator);
+		}
+	
 		std::string http_status;
-		if(result == true) {	
+		if(success) {	
 			document.AddMember("status", "An attempt to pause the torrent will be made asynchronously", allocator);
 			http_status = "HTTP/1.1 202 Accepted\r\n";
 		}
@@ -101,7 +105,6 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 			document.AddMember("status", "Could not find torrent", allocator);
 			http_status = "HTTP/1.1 404 Not Found\r\n";
 		}
-		document.AddMember("id", id, allocator);
 
 		rapidjson::StringBuffer string_buffer;
 		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
