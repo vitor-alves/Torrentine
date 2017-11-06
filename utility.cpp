@@ -4,7 +4,6 @@
 #include <fstream>
 #include <string>
 #include "utility.h"
-#include "lib/plog/Log.h"
 
 std::string random_string(std::string chars, int size) {
 	std::random_device rgn;
