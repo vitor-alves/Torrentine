@@ -13,6 +13,7 @@
 #include "lib/rapidjson/prettywriter.h"
 #include "lib/rapidjson/writer.h"
 #include "lib/rapidjson/stringbuffer.h"
+#include <typeinfo>
 
 RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
 	std::string api_port;
@@ -22,7 +23,8 @@ RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torren
 		api_port = config.get_config("api.port");
 	}
 	catch(const boost::property_tree::ptree_error &e) {
-		LOG_ERROR << e.what(); }
+		LOG_ERROR << e.what();
+	}
 	std::stringstream ss(api_port);
 	ss >> server.config.port;
 	if(ss.fail()) {
@@ -48,8 +50,36 @@ void RestAPI::stop_server() {
 	delete server_thread;
 }
 
+// WARNING: do not add or remove resources after start() is called
+void RestAPI::define_resources() {
+	// /torrents/<id>/stop
+	server.resource["^/torrents/(?:([0-9,]*)/|)stop$"]["GET"] =
+	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_stop(response, request); };
+
+	server.resource["^/torrents$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_get(response, request); };
+	
+	server.resource["^/torrents$"]["DELETE"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
+		{ this->torrents_delete(response, request); };
+
+	server.resource["^/torrents/add_file$"]["POST"] =
+	       	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_add(response, request); };
+
+	server.default_resource["GET"] =
+	        [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
+		{ this->webUI_get(response, request); };
+}
+
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	try {
+		std::vector<unsigned long int> ids = split_string_ulong(request->path_match[1], ',');
+		
+		// TODO - finish this implementation. Use the ids vector.
+
 		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
 		if( query.find("id") == query.end() || query.find("force_stop") == query.end() )
 			throw std::invalid_argument("Invalid parameters");
@@ -299,27 +329,4 @@ void RestAPI::webUI_get(std::shared_ptr<HttpServer::Response> response, std::sha
 		response->write(SimpleWeb::StatusCode::client_error_bad_request, "Could not open path " + request->path + ": " + e.what());
 		LOG_ERROR << "Could not open path " + request->path + ": " + e.what();
 	}
-}
-
-// WARNING: do not add or remove resources after start() is called
-void RestAPI::define_resources() {
-	server.resource["^/torrents/stop$"]["GET"] =
-	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->torrents_stop(response, request); };
-
-	server.resource["^/torrents$"]["GET"] =
-		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->torrents_get(response, request); };
-	
-	server.resource["^/torrents$"]["DELETE"] =
-		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
-		{ this->torrents_delete(response, request); };
-
-	server.resource["^/torrents/add_file$"]["POST"] =
-	       	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->torrents_add(response, request); };
-
-	server.default_resource["GET"] =
-	        [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
-		{ this->webUI_get(response, request); };
 }

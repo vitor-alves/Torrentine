@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 #include "utility.h"
+#include "lib/plog/Log.h"
 
 std::string random_string(std::string chars, int size) {
 	std::random_device rgn;
@@ -28,4 +29,18 @@ bool file_to_buffer(std::vector<char> &buffer, const std::string filename) {
 		ifs.read(&buffer[0], fileSize);
 		return true;
 	}
+}
+
+// Splits integer only string separated by 'delim'
+std::vector<unsigned long int> split_string_ulong(const std::string &str, char delim) {
+	std::vector<unsigned long int> ids;
+	std::stringstream ss(str);
+
+	std::string item;
+	while(std::getline(ss, item, ',')) {
+		if(!item.empty()) {
+			ids.push_back(std::stoul(item));
+		}
+	}
+	return ids;
 }
