@@ -54,7 +54,7 @@ void RestAPI::stop_server() {
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
 	// /torrents/<id>/stop
-	server.resource["^/session/torrents/(?:([0-9,]*)/|)stop$"]["PUT"] =
+	server.resource["^/session/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_stop(response, request); };
 
@@ -76,29 +76,36 @@ void RestAPI::define_resources() {
 }
 
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::string json;
+	
 	try {
 		std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+		bool force_stop = false;
 		
 		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-		if(query.find("force_stop") == query.end() )
-			throw std::invalid_argument("invalid parameters");
-		bool force_stop;
-		std::istringstream(query.find("force_stop")->second) >> std::boolalpha >> force_stop;
+		auto params_force_stop = query.find("force_stop");
+		if(params_force_stop != query.end()) {
+			if(params_force_stop->second == "true" || params_force_stop->second == "false")
+				std::istringstream(params_force_stop->second) >> std::boolalpha >> force_stop;
+			else
+				throw std::invalid_argument("invalid parameters");
+		}
 
-		rapidjson::Document document;
-		document.SetObject();
-		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		std::string http_status;
 		unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
 		if(result == 0) {	
+			http_status = "HTTP/1.1 202 Accepted\r\n";
 			rapidjson::Value data(rapidjson::kArrayType);
 			rapidjson::Value d(rapidjson::kObjectType);
-			d.AddMember("message", "An attempt to stop the torrent will be made asynchronously", allocator);
+			d.AddMember("message", "An attempt to stop the torrents will be made asynchronously", allocator);
 			data.PushBack(d, allocator);
 			document.AddMember("data", data, allocator);
-			http_status = "HTTP/1.1 202 Accepted\r\n";
 		}
 		else {
+			http_status = "HTTP/1.1 404 Not Found\r\n";
 			rapidjson::Value errors(rapidjson::kArrayType);
 			rapidjson::Value e(rapidjson::kObjectType);
 			e.AddMember("code", 999, allocator);
@@ -106,23 +113,27 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 			e.AddMember("id", result, allocator);
 			errors.PushBack(e, allocator);
 			document.AddMember("errors", errors, allocator);
-			http_status = "HTTP/1.1 404 Not Found\r\n";
 		}
+	}
+	catch(const std::exception &ex) {
+		http_status = "HTTP/1.1 400 Bad Request\r\n";
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 999, allocator);
+		e.AddMember("message", rapidjson::StringRef(ex.what()), allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
 
-		rapidjson::StringBuffer string_buffer;
-		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
-		document.Accept(writer);
-		std::string json = string_buffer.GetString();
+		LOG_ERROR << "HTTP/1.1 400 Bad Request: " << ex.what();
+	}
 
-		*response << http_status
-				<< "Content-Length: " << json.length() << "\r\n\r\n"
+	rapidjson::StringBuffer string_buffer;
+	rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+	document.Accept(writer);
+	json = string_buffer.GetString();
+	
+	*response << http_status << "Content-Length: " << json.length() << "\r\n\r\n"
 				<< json;
-	}
-	catch(const std::exception &e) {
-		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
-					<< e.what();
-		LOG_ERROR << "HTTP Bad Request: " << e.what();
-	}
 
 }
 
