@@ -90,7 +90,6 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 		std::string http_status;
 		unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
-		// TODO finish 
 		if(result == 0) {	
 			rapidjson::Value data(rapidjson::kArrayType);
 			rapidjson::Value d(rapidjson::kObjectType);
@@ -103,7 +102,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 			rapidjson::Value errors(rapidjson::kArrayType);
 			rapidjson::Value e(rapidjson::kObjectType);
 			e.AddMember("code", 999, allocator);
-			e.AddMember("message", "Could not find torrent", allocator);
+			e.AddMember("message", "Could not stop torrent", allocator);
 			e.AddMember("id", result, allocator);
 			errors.PushBack(e, allocator);
 			document.AddMember("errors", errors, allocator);
