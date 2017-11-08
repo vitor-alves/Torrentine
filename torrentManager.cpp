@@ -134,19 +134,35 @@ bool TorrentManager::remove_torrent(const unsigned long int id, bool remove_data
 	return false;
 }
 
+// TODO - ids should be optional. If not present: stop all.
+unsigned long int TorrentManager::stop_torrents(const std::vector<unsigned long int> ids, bool force_stop) {
 
-bool TorrentManager::stop_torrent(const unsigned long int id, bool force_stop) {
 	// TODO - this is sooooo unefficient. Use a Map instead of Vector to store torrents and change this code.
-	for(std::vector<Torrent*>::iterator it = torrents.begin(); it != torrents.end(); it++) {
-		if((*it)->get_id() == id) {
-			lt::torrent_handle handle = (*it)->get_handle();
-			if(force_stop)
-				handle.pause();
-			else
-				handle.pause(lt::torrent_handle::graceful_pause);
-			return true;	
+	// Too dumb. fix this.
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<Torrent*>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
 		}
-	}	
-	return false;
+		if(!found)
+			return id;
+	}
+
+	// TODO - this is sooooo unefficient. Use a Map instead of Vector to store torrents and change this code.
+	for(unsigned long int id : ids) {
+		for(std::vector<Torrent*>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				lt::torrent_handle handle = (*it)->get_handle();
+				if(force_stop)
+					handle.pause();
+				else
+					handle.pause(lt::torrent_handle::graceful_pause);
+			}
+		}
+	}
+	return 0;
 }
+
 

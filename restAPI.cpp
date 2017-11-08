@@ -14,7 +14,8 @@
 #include "lib/rapidjson/writer.h"
 #include "lib/rapidjson/stringbuffer.h"
 #include <typeinfo>
-
+#include <vector>
+#include <string> 
 RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
 	std::string api_port;
 	try {
@@ -84,25 +85,28 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		bool force_stop;
 		std::istringstream(query.find("force_stop")->second) >> std::boolalpha >> force_stop;
 
-		// TODO - finish this implementation. Return correct object based on jsonapi.org
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		bool success = true;
-		for(unsigned long int id : ids) {
-			bool result = torrent_manager.stop_torrent(id, force_stop);
-			if(result == false)
-				success = false;
-			document.AddMember("id", id, allocator);
-		}
-	
 		std::string http_status;
-		if(success) {	
-			document.AddMember("status", "An attempt to pause the torrent will be made asynchronously", allocator);
+		unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
+		// TODO finish 
+		if(result == 0) {	
+			rapidjson::Value data(rapidjson::kArrayType);
+			rapidjson::Value d(rapidjson::kObjectType);
+			d.AddMember("message", "An attempt to stop the torrent will be made asynchronously", allocator);
+			data.PushBack(d, allocator);
+			document.AddMember("data", data, allocator);
 			http_status = "HTTP/1.1 202 Accepted\r\n";
 		}
-		else {	
-			document.AddMember("status", "Could not find torrent", allocator);
+		else {
+			rapidjson::Value errors(rapidjson::kArrayType);
+			rapidjson::Value e(rapidjson::kObjectType);
+			e.AddMember("code", 999, allocator);
+			e.AddMember("message", "Could not find torrent", allocator);
+			e.AddMember("id", result, allocator);
+			errors.PushBack(e, allocator);
+			document.AddMember("errors", errors, allocator);
 			http_status = "HTTP/1.1 404 Not Found\r\n";
 		}
 
