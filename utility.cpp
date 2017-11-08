@@ -30,8 +30,8 @@ bool file_to_buffer(std::vector<char> &buffer, const std::string filename) {
 	}
 }
 
-// Splits string of integers saparated by char 'delim'
-std::vector<unsigned long int> split_string_to_ulong(const std::string &str, char delim) {
+// Splits string of integers saparated by char 'delim'. Assumes string is in valid format.
+std::vector<unsigned long int> split_string_to_ulong(const std::string &str, const char delim) {
 	std::vector<unsigned long int> numbers;
 	std::stringstream ss(str);
 

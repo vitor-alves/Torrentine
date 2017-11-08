@@ -82,10 +82,11 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	std::string http_status;
 	std::string json;
 	
-	try {
-		std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
-		bool force_stop = false;
-		
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+	bool force_stop = false;
+	
+	// Check if request parameters are valid
+	try {		
 		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
 		auto params_force_stop = query.find("force_stop");
 		if(params_force_stop != query.end()) {
@@ -95,36 +96,48 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 				throw std::invalid_argument("invalid parameters");
 		}
 
-		unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
-		if(result == 0) {	
-			http_status = "HTTP/1.1 202 Accepted\r\n";
-			rapidjson::Value data(rapidjson::kArrayType);
-			rapidjson::Value d(rapidjson::kObjectType);
-			d.AddMember("message", "An attempt to stop the torrents will be made asynchronously", allocator);
-			data.PushBack(d, allocator);
-			document.AddMember("data", data, allocator);
-		}
-		else {
-			http_status = "HTTP/1.1 404 Not Found\r\n";
-			rapidjson::Value errors(rapidjson::kArrayType);
-			rapidjson::Value e(rapidjson::kObjectType);
-			e.AddMember("code", 999, allocator);
-			e.AddMember("message", "Could not stop torrent", allocator);
-			e.AddMember("id", result, allocator);
-			errors.PushBack(e, allocator);
-			document.AddMember("errors", errors, allocator);
-		}
 	}
 	catch(const std::exception &ex) {
 		http_status = "HTTP/1.1 400 Bad Request\r\n";
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 999, allocator);
+		e.AddMember("code", 4100, allocator);
 		e.AddMember("message", rapidjson::StringRef(ex.what()), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
+		
+		rapidjson::StringBuffer string_buffer;
+		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+		document.Accept(writer);
+		json = string_buffer.GetString();
+		
+		LOG_DEBUG << "HTTP/1.1 400 Bad Request: " << ex.what();
+	
+		*response << http_status << "Content-Length: " << json.length() << "\r\n\r\n"
+					<< json;
+		return;
+	}
 
-		LOG_ERROR << "HTTP/1.1 400 Bad Request: " << ex.what();
+	unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
+	
+	// If all torrents were found and could be set to stop async
+	if(result == 0) {	
+		http_status = "HTTP/1.1 202 Accepted\r\n";
+		rapidjson::Value data(rapidjson::kArrayType);
+		rapidjson::Value d(rapidjson::kObjectType);
+		d.AddMember("message", "An attempt to stop the torrents will be made asynchronously", allocator);
+		data.PushBack(d, allocator);
+		document.AddMember("data", data, allocator);
+	}
+	else {
+		http_status = "HTTP/1.1 404 Not Found\r\n";
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3100, allocator);
+		e.AddMember("message", "Could not stop torrent", allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
 	}
 
 	rapidjson::StringBuffer string_buffer;
@@ -134,7 +147,6 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	
 	*response << http_status << "Content-Length: " << json.length() << "\r\n\r\n"
 				<< json;
-
 }
 
 void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
@@ -178,7 +190,7 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 	catch(const std::exception &e) {
 		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 					<< e.what();
-		LOG_ERROR << "HTTP Bad Request: " << e.what();
+	LOG_DEBUG << "HTTP Bad Request: " << e.what();
 	}
 }
 
@@ -220,7 +232,7 @@ void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, st
 	catch(const std::exception &e) {
 		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 					<< e.what();
-		LOG_ERROR << "HTTP Bad Request: " << e.what();
+		LOG_DEBUG << "HTTP Bad Request: " << e.what();
 	}		
 }
 
@@ -267,7 +279,7 @@ void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::
 	catch(const std::exception &e) {
 		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 					<< e.what();	
-		LOG_ERROR << "HTTP Bad Request: " << e.what();
+		LOG_DEBUG << "HTTP Bad Request: " << e.what();
 	}
 }
 
