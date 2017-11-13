@@ -76,16 +76,51 @@ void RestAPI::define_resources() {
 }
 
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	rapidjson::Document document;
-	document.SetObject();
-	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_status;
-	std::string json;
-	
-	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+
+	// Check headers for Authorization
+	try {		
+		SimpleWeb::CaseInsensitiveMultimap header = request->header;
+		auto authorization = header.find("Authorization");
+		if(authorization != header.end()) {
+			if(true) {
+				// TODO - check for user/pass
+				LOG_DEBUG << authorization->second;
+			}
+			else {
+				throw std::invalid_argument("Wrong user/password specified in Authorization header field. Access denied");
+			}
+		}
+		else {
+			throw std::invalid_argument("Authorization could not be found in request header. Access denied");
+		}
+	}
+	catch(const std::exception &ex) {
+		rapidjson::Document document;
+		document.SetObject();
+		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 4100, allocator);
+		e.AddMember("message", rapidjson::StringRef(ex.what()), allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+		rapidjson::StringBuffer string_buffer;
+		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+		document.Accept(writer);
+		std::string json = string_buffer.GetString();
+			
+		std::string http_status = "HTTP/1.1 401 Unauthorized";
+		std::string http_header = "Content-Length: " + std::to_string(json.length());
+
+		*response << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+		
+		LOG_DEBUG << "HTTP/1.1 401 Unauthorized: " << ex.what();
+		
+		return;
+	}
+
+	// Check for OPTIONAL parameters
 	bool force_stop = false;
-	
-	// Check if request parameters are present and valid
 	try {		
 		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
 		auto params_force_stop = query.find("force_stop");
@@ -98,39 +133,55 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 
 	}
 	catch(const std::exception &ex) {
-		http_status = "HTTP/1.1 400 Bad Request\r\n";
+		rapidjson::Document document;
+		document.SetObject();
+		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 4100, allocator);
 		e.AddMember("message", rapidjson::StringRef(ex.what()), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
 		rapidjson::StringBuffer string_buffer;
 		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
 		document.Accept(writer);
-		json = string_buffer.GetString();
+		std::string json = string_buffer.GetString();
+			
+		std::string http_status = "HTTP/1.1 400 Bad Request";
+		std::string http_header = "Content-Length: " + std::to_string(json.length());
+
+		*response << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 		
 		LOG_DEBUG << "HTTP/1.1 400 Bad Request: " << ex.what();
-	
-		*response << http_status << "Content-Length: " << json.length() << "\r\n\r\n"
-					<< json;
+		
 		return;
 	}
-
+	
+	// Do action - stop torrents
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
 	
-	// If all torrents were found and could be set to stop async
+	// Send response
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 	if(result == 0) {	
-		http_status = "HTTP/1.1 202 Accepted\r\n";
 		rapidjson::Value data(rapidjson::kArrayType);
 		rapidjson::Value d(rapidjson::kObjectType);
 		d.AddMember("message", "An attempt to stop the torrents will be made asynchronously", allocator);
 		data.PushBack(d, allocator);
 		document.AddMember("data", data, allocator);
+		rapidjson::StringBuffer string_buffer;
+		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+		document.Accept(writer);
+		std::string json = string_buffer.GetString();
+		
+		std::string http_status = "HTTP/1.1 202 Accepted";
+		std::string http_header = "Content-Length: " + std::to_string(json.length());
+		
+		*response << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	}
 	else {
-		http_status = "HTTP/1.1 404 Not Found\r\n";
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 3100, allocator);
@@ -138,15 +189,16 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
+		rapidjson::StringBuffer string_buffer;
+		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
+		document.Accept(writer);
+		std::string json = string_buffer.GetString();
+		
+		std::string http_status = "HTTP/1.1 404 Not Found";
+		std::string http_header = "Content-Length: " + std::to_string(json.length());
+		
+		*response << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	}
-
-	rapidjson::StringBuffer string_buffer;
-	rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
-	document.Accept(writer);
-	json = string_buffer.GetString();
-	
-	*response << http_status << "Content-Length: " << json.length() << "\r\n\r\n"
-				<< json;
 }
 
 void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
