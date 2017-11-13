@@ -85,7 +85,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	bool force_stop = false;
 	
-	// Check if request parameters are valid
+	// Check if request parameters are present and valid
 	try {		
 		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
 		auto params_force_stop = query.find("force_stop");
