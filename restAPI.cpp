@@ -75,6 +75,8 @@ void RestAPI::define_resources() {
 		{ this->webUI_get(response, request); };
 }
 
+// TODO - improve log messages. Create function to generate error json and reduce lines of code. Exceptions could be better.
+// crate data structure to hold error codes and their messages
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 
 	// Check headers for Authorization
@@ -82,12 +84,12 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		SimpleWeb::CaseInsensitiveMultimap header = request->header;
 		auto authorization = header.find("Authorization");
 		if(authorization != header.end()) {
+			// TODO - check for user/pass
 			if(true) {
-				// TODO - check for user/pass
 				LOG_DEBUG << authorization->second;
 			}
 			else {
-				throw std::invalid_argument("Wrong user/password specified in Authorization header field. Access denied");
+				throw std::invalid_argument("Wrong user or password specified in Authorization header field. Access denied");
 			}
 		}
 		else {
@@ -100,7 +102,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 4100, allocator);
+		e.AddMember("code", 4150, allocator);
 		e.AddMember("message", rapidjson::StringRef(ex.what()), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
