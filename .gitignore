@@ -35,3 +35,4 @@ test/test_download/
 *.vim
 temp/
 log/
+.fuse_hidden*
