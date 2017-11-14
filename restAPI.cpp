@@ -75,8 +75,11 @@ void RestAPI::define_resources() {
 		{ this->webUI_get(response, request); };
 }
 
-// TODO - improve log messages. Create function to generate error json and reduce lines of code. Exceptions could be better.
-// crate data structure to hold error codes and their messages
+// TODO - improve log messages. Create function to generate error json and reduce lines of code. 
+// Create error struct that will be passed to this function. Must be aple to pass multiple error objects to function (array or vector)
+// Function to check authorization also. Exceptions could be better.
+// crate data structure to hold error codes and their messages. To create an error object only the error code should be passed
+// the message string is stored somewhere else
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 
 	// Check headers for Authorization
