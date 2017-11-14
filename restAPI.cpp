@@ -53,12 +53,13 @@ void RestAPI::stop_server() {
 
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
-	// PATCH - /torrents/<id>/stop
+	/* /torrents/<id>/stop - PATCH */
 	server.resource["^/session/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_stop(response, request); };
-
-	server.resource["^/torrents$"]["GET"] =
+	
+	/* /session/torrents/<id> - GET */
+	server.resource["^/session/torrents(?:/([0-9,]+)|)$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_get(response, request); };
 	
@@ -75,13 +76,13 @@ void RestAPI::define_resources() {
 		{ this->webUI_get(response, request); };
 }
 
-// TODO - improve log messages. Create function to generate error json and reduce lines of code. 
+// TODO - improve log messages. Create function to generate error json and reduce lines of code. (what shoul be done in cases where 
+// other fields are send in error object like the id in error 3100 when torrent cant be stopped ? maybe this is not a good idea)
 // Create error struct that will be passed to this function. Must be aple to pass multiple error objects to function (array or vector)
 // Function to check authorization also. Exceptions could be better.
 // crate data structure to hold error codes and their messages. To create an error object only the error code should be passed
 // the message string is stored somewhere else
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-
 	// Check headers for Authorization
 	try {		
 		SimpleWeb::CaseInsensitiveMultimap header = request->header;
