@@ -84,12 +84,13 @@ void RestAPI::define_resources() {
 // the message string is stored somewhere else
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	// Check headers for Authorization
+		LOG_DEBUG << request->http_version;
 	try {		
 		SimpleWeb::CaseInsensitiveMultimap header = request->header;
 		auto authorization = header.find("Authorization");
 		if(authorization != header.end()) {
 			if(!validate_authorization(authorization->second)) {
-				throw std::invalid_argument("wrong user or password specified in Authorization header field. Access denied");
+				throw std::invalid_argument("Wrong user or password specified in Authorization header field. Access denied");
 			}
 		}
 		else {
@@ -111,13 +112,12 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		document.Accept(writer);
 		std::string json = string_buffer.GetString();
 			
-		std::string http_status = "401 Unauthorized";
+		std::string http_status = "HTTP/1.1 401 Unauthorized";
 		std::string http_header = "Content-Length: " + std::to_string(json.length());
 
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
-		
-		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << ex.what();
+		*response << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+
+		LOG_DEBUG << "HTTP Response 401 - Unauthorized to " << ex.what();
 		
 		return;
 	}
@@ -150,13 +150,13 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		document.Accept(writer);
 		std::string json = string_buffer.GetString();
 			
-		std::string http_status = "400 Bad Request";
+		std::string http_status = "HTTP/1.1 400 Bad Request";
 		std::string http_header = "Content-Length: " + std::to_string(json.length());
 
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+		*response << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 		
-		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << ex.what();
+		LOG_DEBUG << "HTTP/1.1 400 Bad Request: " << ex.what();
+		
 		return;
 	}
 	
@@ -171,8 +171,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	if(result == 0) {	
 		rapidjson::Value data(rapidjson::kArrayType);
 		rapidjson::Value d(rapidjson::kObjectType);
-		char *message = "An attempt to stop the torrents will be made asynchronously";
-		d.AddMember("message", rapidjson::StringRef(message), allocator);
+		d.AddMember("message", "An attempt to stop the torrents will be made asynchronously", allocator);
 		data.PushBack(d, allocator);
 		document.AddMember("data", data, allocator);
 		rapidjson::StringBuffer string_buffer;
@@ -180,20 +179,16 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		document.Accept(writer);
 		std::string json = string_buffer.GetString();
 		
-		std::string http_status = "202 Accepted";
+		std::string http_status = "HTTP/1.1 202 Accepted";
 		std::string http_header = "Content-Length: " + std::to_string(json.length());
 		
-		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to "
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
-		
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+		*response << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	}
 	else {
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 3100, allocator);
-		char* message = "Could not stop torrent";
-		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("message", "Could not stop torrent", allocator);
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
@@ -202,13 +197,10 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		document.Accept(writer);
 		std::string json = string_buffer.GetString();
 		
-		std::string http_status = "404 Not Found";
+		std::string http_status = "HTTP/1.1 404 Not Found";
 		std::string http_header = "Content-Length: " + std::to_string(json.length());
-	
-		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to "
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
-
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+		
+		*response << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	}
 }
 
