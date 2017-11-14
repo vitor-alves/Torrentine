@@ -76,10 +76,7 @@ void RestAPI::define_resources() {
 		{ this->webUI_get(response, request); };
 }
 
-// TODO - improve log messages. Create function to generate error json and reduce lines of code. (what shoul be done in cases where 
-// other fields are send in error object like the id in error 3100 when torrent cant be stopped ? maybe this is not a good idea)
-// Create error struct that will be passed to this function. Must be aple to pass multiple error objects to function (array or vector)
-// Function to check authorization also. Exceptions could be better.
+// Exceptions could be better.
 // crate data structure to hold error codes and their messages. To create an error object only the error code should be passed
 // the message string is stored somewhere else
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
@@ -96,7 +93,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 			throw std::invalid_argument("Authorization could not be found in request header. Access denied");
 		}
 	}
-	catch(const std::exception &ex) {
+	catch(std::exception const &ex) {
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -135,7 +132,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		}
 
 	}
-	catch(const std::exception &ex) {
+	catch(std::exception const &ex) {
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -171,7 +168,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	if(result == 0) {	
 		rapidjson::Value data(rapidjson::kArrayType);
 		rapidjson::Value d(rapidjson::kObjectType);
-		char *message = "An attempt to stop the torrents will be made asynchronously";
+		char const *message = "An attempt to stop the torrents will be made asynchronously";
 		d.AddMember("message", rapidjson::StringRef(message), allocator);
 		data.PushBack(d, allocator);
 		document.AddMember("data", data, allocator);
@@ -192,7 +189,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 3100, allocator);
-		char* message = "Could not stop torrent";
+		char const *message = "Could not stop torrent";
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
