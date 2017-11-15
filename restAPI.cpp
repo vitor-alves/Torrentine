@@ -81,15 +81,24 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	// Check for OPTIONAL parameters
 	bool force_stop = false;
 	SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-	auto params_force_stop = query.find("force_stop");
-	if(params_force_stop != query.end() && (params_force_stop->second == "true" || params_force_stop->second == "false")) {
-		std::istringstream(params_force_stop->second) >> std::boolalpha >> force_stop;
+	SimpleWeb::CaseInsensitiveMultimap::iterator it_parameter;
+	std::string parameter;
+	int parameter_format;
+	std::vector<std::string> allowed_values;
+	parameter = "force_stop";
+	parameter_format = 999; // TODO - enum
+	allowed_values = {"true", "false"};
+	it_parameter = query.find(parameter);
+	if(it_parameter != query.end()) {
+		if(validate_parameter(query, it_parameter, parameter_format, allowed_values)) {
+			std::istringstream(it_parameter->second) >> std::boolalpha >> force_stop;
+		}
+		else {
+			respond_invalid_parameter(response, request, parameter);
+			return;
+		}
 	}
-	else {
-		respond_invalid_parameter(response, request, "force_stop");
-		return;
-	}
-	
+
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
 	
@@ -423,4 +432,19 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 	
 	LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
 		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
+}
+
+bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const allowed_values) {
+	if(it_parameter == query.end()) {
+		return false;
+	}
+	if(false /*TODO - parameter in INvalid format*/) {
+		  return false;
+	}
+	for(std::string value : allowed_values) {
+		if(it_parameter->second == value) {
+			return true;
+		}
+	}
+	return false;
 }
