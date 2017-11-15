@@ -76,8 +76,6 @@ void RestAPI::define_resources() {
 		{ this->webUI_get(response, request); };
 }
 
-// crate data structure to hold error codes and their messages. To create an error object only the error code should be passed
-// the message string is stored somewhere else
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	// Check headers for Authorization
 	SimpleWeb::CaseInsensitiveMultimap header = request->header;
@@ -89,7 +87,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 4150, allocator);
-		char const *message = "invalid Authorization. Access denied";
+		char const *message = error_codes.find(4150)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
@@ -123,7 +121,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 4100, allocator);
-		char const *message = "invalid parameters";
+		char const *message = error_codes.find(4100)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
@@ -174,8 +172,9 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 3100, allocator);
-		char const *message = "Could not stop torrent with id "; // TODO - put id (result) here
+		char const *message = error_codes.find(3100)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
 		rapidjson::StringBuffer string_buffer;

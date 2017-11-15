@@ -18,7 +18,9 @@ private:
 	void define_resources();
 	std::string torrent_file_path;
 	std::string download_path;
-
+	std::unordered_map<int, std::string> const error_codes = {{4150, "invalid Authorization. Access denied"},
+								{4100, "invalid parameters"},
+								{3100, "could not stop torrent"}}; // TODO - move this out of here
 public:
 	RestAPI(ConfigManager config, TorrentManager& torrentManager);
 	~RestAPI();
