@@ -76,31 +76,21 @@ void RestAPI::define_resources() {
 		{ this->webUI_get(response, request); };
 }
 
-// Exceptions could be better.
 // crate data structure to hold error codes and their messages. To create an error object only the error code should be passed
 // the message string is stored somewhere else
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	// Check headers for Authorization
-	try {		
-		SimpleWeb::CaseInsensitiveMultimap header = request->header;
-		auto authorization = header.find("Authorization");
-		if(authorization != header.end()) {
-			if(!validate_authorization(authorization->second)) {
-				throw std::invalid_argument("wrong user or password specified in Authorization header field. Access denied");
-			}
-		}
-		else {
-			throw std::invalid_argument("Authorization could not be found in request header. Access denied");
-		}
-	}
-	catch(std::exception const &ex) {
+	SimpleWeb::CaseInsensitiveMultimap header = request->header;
+	auto authorization = header.find("Authorization");
+	if(authorization == header.end() || !validate_authorization(authorization->second)) {
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 4150, allocator);
-		e.AddMember("message", rapidjson::StringRef(ex.what()), allocator);
+		char const *message = "invalid Authorization. Access denied";
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
 		rapidjson::StringBuffer string_buffer;
@@ -114,32 +104,27 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 		
 		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << ex.what();
+			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
 		
 		return;
 	}
 
 	// Check for OPTIONAL parameters
 	bool force_stop = false;
-	try {		
-		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-		auto params_force_stop = query.find("force_stop");
-		if(params_force_stop != query.end()) {
-			if(params_force_stop->second == "true" || params_force_stop->second == "false")
-				std::istringstream(params_force_stop->second) >> std::boolalpha >> force_stop;
-			else
-				throw std::invalid_argument("invalid parameters");
-		}
-
+	SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
+	auto params_force_stop = query.find("force_stop");
+	if(params_force_stop != query.end() && (params_force_stop->second == "true" || params_force_stop->second == "false")) {
+		std::istringstream(params_force_stop->second) >> std::boolalpha >> force_stop;
 	}
-	catch(std::exception const &ex) {
+	else {
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 4100, allocator);
-		e.AddMember("message", rapidjson::StringRef(ex.what()), allocator);
+		char const *message = "invalid parameters";
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
 		rapidjson::StringBuffer string_buffer;
@@ -153,7 +138,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 		
 		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << ex.what();
+			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
 		return;
 	}
 	
@@ -189,9 +174,8 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 3100, allocator);
-		char const *message = "Could not stop torrent";
+		char const *message = "Could not stop torrent with id "; // TODO - put id (result) here
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
-		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
 		rapidjson::StringBuffer string_buffer;
