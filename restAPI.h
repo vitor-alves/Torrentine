@@ -31,6 +31,16 @@ private:
 		       			std::string const parameter);
 	void respond_invalid_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	bool validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const allowed_values);
+
+private:
+	struct api_parameter {
+		std::string name;
+		std::string value;
+		int format;
+		bool optional;
+		std::vector<std::string> allowed_values;	
+	};
+
 public:
 	RestAPI(ConfigManager config, TorrentManager& torrentManager);
 	~RestAPI();
@@ -42,5 +52,7 @@ public:
 	void torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void webUI_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 };
+
+
 
 #endif

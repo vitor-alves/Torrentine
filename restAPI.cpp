@@ -72,35 +72,37 @@ void RestAPI::define_resources() {
 		{ this->webUI_get(response, request); };
 }
 
+// TODO - specify necessary headers in request and necessary headers in response
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
 		return;
 	}
 
-	// Check for OPTIONAL parameters
-	bool force_stop = false;
+	std::map<std::string, api_parameter> parameters = {
+		{"force_stop",{"force_stop","false",999,true,{"true","false"}}} };
+
 	SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-	SimpleWeb::CaseInsensitiveMultimap::iterator it_parameter;
-	std::string parameter;
-	int parameter_format;
-	std::vector<std::string> allowed_values;
-	parameter = "force_stop";
-	parameter_format = 999; // TODO - enum
-	allowed_values = {"true", "false"};
-	it_parameter = query.find(parameter);
-	if(it_parameter != query.end()) {
-		if(validate_parameter(query, it_parameter, parameter_format, allowed_values)) {
-			std::istringstream(it_parameter->second) >> std::boolalpha >> force_stop;
+	SimpleWeb::CaseInsensitiveMultimap::iterator it_query;
+	for(auto p = parameters.begin(); p != parameters.end(); p++) {
+		it_query = query.find(p->second.name);
+		if(it_query != query.end()) {
+			if(validate_parameter(query, it_query, p->second.format, p->second.allowed_values)) {
+				p->second.value = it_query->second;
+			}
+			else {
+				respond_invalid_parameter(response, request, p->second.name);
+				return;
+			}
 		}
-		else {
-			respond_invalid_parameter(response, request, parameter);
+		else if(!p->second.optional) {
+			respond_invalid_parameter(response, request, p->second.name);
 			return;
 		}
 	}
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
-	unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
+	unsigned long int result = torrent_manager.stop_torrents(ids, str_to_bool(parameters.find("force_stop")->second.value));
 	
 	// Send response
 	rapidjson::Document document;

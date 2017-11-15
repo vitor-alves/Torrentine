@@ -3,6 +3,7 @@
 #include <sstream>
 #include <fstream>
 #include <string>
+#include <cctype>
 #include "utility.h"
 
 std::string random_string(std::string chars, int size) {
@@ -48,4 +49,11 @@ std::vector<unsigned long int> split_string_to_ulong(const std::string &str, con
 // TODO - create logic. Move this function to a proper file
 bool is_authorization_valid(std::string authorization_base64) {
 	return true;
+}
+
+bool str_to_bool(std::string s) {
+	std::transform(s.begin(), s.end(), s.begin(), ::tolower);
+	bool b;
+	std::istringstream(s) >> std::boolalpha >> b;
+	return b;
 }
