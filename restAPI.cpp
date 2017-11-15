@@ -73,8 +73,10 @@ void RestAPI::define_resources() {
 }
 
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	if(!is_authorization_valid(response, request))
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
 		return;
+	}
 
 	// Check for OPTIONAL parameters
 	bool force_stop = false;
@@ -84,30 +86,10 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		std::istringstream(params_force_stop->second) >> std::boolalpha >> force_stop;
 	}
 	else {
-		rapidjson::Document document;
-		document.SetObject();
-		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		rapidjson::Value errors(rapidjson::kArrayType);
-		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 4100, allocator);
-		char const *message = error_codes.find(4100)->second.c_str();
-		e.AddMember("message", rapidjson::StringRef(message), allocator);
-		errors.PushBack(e, allocator);
-		document.AddMember("errors", errors, allocator);
-		
-		std::string json = stringfy_document(document);
-			
-		std::string http_status = "400 Bad Request";
-		std::string http_header = "Content-Length: " + std::to_string(json.length());
-
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
-		
-		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
+		respond_invalid_parameter(response, request, "force_stop");
 		return;
 	}
 	
-	// Do action - stop torrents
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.stop_torrents(ids, force_stop);
 	
@@ -367,36 +349,38 @@ void RestAPI::webUI_get(std::shared_ptr<HttpServer::Response> response, std::sha
 }
 
 // Check headers for Authorization
-bool RestAPI::is_authorization_valid(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+bool RestAPI::validate_authorization(std::shared_ptr<HttpServer::Request> request) {
 	SimpleWeb::CaseInsensitiveMultimap header = request->header;
 	auto authorization = header.find("Authorization");
-	if(authorization != header.end() && validade_authorization(authorization->second)) {
+	if(authorization != header.end() && is_authorization_valid(authorization->second)) {
 		return true;
 	}
 	else {
-		rapidjson::Document document;
-		document.SetObject();
-		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		rapidjson::Value errors(rapidjson::kArrayType);
-		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 4150, allocator);
-		char const *message = error_codes.find(4150)->second.c_str();
-		e.AddMember("message", rapidjson::StringRef(message), allocator);
-		errors.PushBack(e, allocator);
-		document.AddMember("errors", errors, allocator);
-		
-		std::string json = stringfy_document(document);
-
-		std::string http_status = "401 Unauthorized";
-		std::string http_header = "Content-Length: " + std::to_string(json.length());
-
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
-		
-		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
-		
 		return false;
 	}
+}
+
+void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	rapidjson::Value errors(rapidjson::kArrayType);
+	rapidjson::Value e(rapidjson::kObjectType);
+	e.AddMember("code", 4150, allocator);
+	char const *message = error_codes.find(4150)->second.c_str();
+	e.AddMember("message", rapidjson::StringRef(message), allocator);
+	errors.PushBack(e, allocator);
+	document.AddMember("errors", errors, allocator);
+	
+	std::string json = stringfy_document(document);
+
+	std::string http_status = "401 Unauthorized";
+	std::string http_header = "Content-Length: " + std::to_string(json.length());
+
+	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+	
+	LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
+		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
 }
 
 std::string RestAPI::stringfy_document(rapidjson::Document &document, bool pretty) {
@@ -414,4 +398,29 @@ std::string RestAPI::stringfy_document(rapidjson::Document &document, bool prett
 		json = string_buffer.GetString();
 	}
 	return json;
+}
+
+
+void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request, std::string const parameter) {
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	rapidjson::Value errors(rapidjson::kArrayType);
+	rapidjson::Value e(rapidjson::kObjectType);
+	e.AddMember("code", 4100, allocator);
+	char const *message = error_codes.find(4100)->second.c_str();
+	e.AddMember("message", rapidjson::StringRef(message), allocator);
+	e.AddMember("parameter", rapidjson::StringRef(parameter.c_str()), allocator);
+	errors.PushBack(e, allocator);
+	document.AddMember("errors", errors, allocator);
+	
+	std::string json = stringfy_document(document);
+		
+	std::string http_status = "400 Bad Request";
+	std::string http_header = "Content-Length: " + std::to_string(json.length());
+
+	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+	
+	LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
+		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
 }

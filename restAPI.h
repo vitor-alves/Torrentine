@@ -25,8 +25,12 @@ private:
 	std::unordered_map<int, std::string> const error_codes = {{4150, "invalid Authorization. Access denied"},
 								{4100, "invalid parameter"},
 								{3100, "could not stop torrent"}}; // TODO - move this out of here
-	bool is_authorization_valid(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	bool validate_authorization(std::shared_ptr<HttpServer::Request> request);
 	std::string stringfy_document(rapidjson::Document &document, bool pretty=true);
+	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request,
+		       			std::string const parameter);
+	void respond_invalid_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+
 public:
 	RestAPI(ConfigManager config, TorrentManager& torrentManager);
 	~RestAPI();
