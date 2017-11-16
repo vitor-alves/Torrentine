@@ -125,7 +125,6 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.stop_torrents(ids, str_to_bool(optional_parameters.find("force_stop")->second.value));
 	
-	// Send response
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -415,7 +414,7 @@ void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response
 		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
 }
 
-std::string RestAPI::stringfy_document(rapidjson::Document &document, bool pretty) {
+std::string RestAPI::stringfy_document(rapidjson::Document &document, bool const pretty) {
 	rapidjson::StringBuffer string_buffer;
 	std::string json;
 
@@ -457,13 +456,14 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
 }
 
-bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const allowed_values) { /* TODO - if allowed_values not present, give default value. Assume any value is ok */
+bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const &allowed_values) {
 	if(it_parameter == query.end()) {
 		return false;
 	}
-	if(false /*TODO - parameter in INvalid format*/) {
+	if(false /*TODO - check if parameter is in invalid format*/) {
 		  return false;
 	}
+	 /* TODO - if allowed_values not present, give default value. Assume any value is ok */
 	for(std::string value : allowed_values) {
 		if(it_parameter->second == value) {
 			return true;

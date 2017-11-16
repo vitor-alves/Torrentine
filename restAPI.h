@@ -20,7 +20,7 @@ private:
 		std::string name;
 		std::string value;
 		int format;
-		std::vector<std::string> allowed_values;	
+		std::vector<std::string> allowed_values; /* TODO - vector should be a set instead ? */	
 	};
 
 	enum api_parameter_format {
@@ -42,7 +42,7 @@ private:
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request,
 		       			std::string const parameter);
 	void respond_invalid_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
-	bool validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const allowed_values);
+	bool validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const &allowed_values);
 	std::string validate_all_parameters(SimpleWeb::CaseInsensitiveMultimap &query,
 			std::map<std::string, api_parameter> &required_parameters,
 			std::map<std::string, api_parameter> &optional_parameters);
