@@ -456,18 +456,30 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
 }
 
+/* TODO - create logic */
+bool RestAPI::is_parameter_format_valid() {
+	return true;
+}
+
 bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const &allowed_values) {
 	if(it_parameter == query.end()) {
 		return false;
 	}
-	if(false /*TODO - check if parameter is in invalid format*/) {
+	if(!is_parameter_format_valid()) {
 		  return false;
 	}
-	 /* TODO - if allowed_values not present, give default value. Assume any value is ok */
+	if(allowed_values.empty()) {
+		return true;
+	}
 	for(std::string value : allowed_values) {
 		if(it_parameter->second == value) {
 			return true;
 		}
 	}
 	return false;
+}
+
+// TODO - create logic.
+bool RestAPI::is_authorization_valid(std::string authorization_base64) {
+	return true;
 }

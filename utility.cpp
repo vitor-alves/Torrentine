@@ -45,12 +45,6 @@ std::vector<unsigned long int> split_string_to_ulong(const std::string &str, con
 	return numbers;
 }
 
-
-// TODO - create logic. Move this function to a proper file
-bool is_authorization_valid(std::string authorization_base64) {
-	return true;
-}
-
 bool str_to_bool(std::string s) {
 	std::transform(s.begin(), s.end(), s.begin(), ::tolower);
 	bool b;

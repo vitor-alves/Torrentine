@@ -46,6 +46,8 @@ private:
 	std::string validate_all_parameters(SimpleWeb::CaseInsensitiveMultimap &query,
 			std::map<std::string, api_parameter> &required_parameters,
 			std::map<std::string, api_parameter> &optional_parameters);
+	bool is_authorization_valid(std::string authorization_base64);
+	bool is_parameter_format_valid();
 public:
 	RestAPI(ConfigManager config, TorrentManager& torrentManager);
 	~RestAPI();
