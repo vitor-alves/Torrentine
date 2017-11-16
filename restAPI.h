@@ -16,6 +16,18 @@ using CaseInsensitiveMultimap = std::unordered_multimap<std::string, std::string
 class RestAPI {
 
 private:
+	struct api_parameter {
+		std::string name;
+		std::string value;
+		int format;
+		std::vector<std::string> allowed_values;	
+	};
+
+	enum api_parameter_format {
+		boolean
+	};
+
+private:
 	HttpServer server;
 	std::thread* server_thread;
 	TorrentManager& torrent_manager;
@@ -23,24 +35,17 @@ private:
 	std::string torrent_file_path;
 	std::string download_path;
 	std::unordered_map<int, std::string> const error_codes = {{4150, "invalid Authorization. Access denied"},
-								{4100, "invalid parameter"},
-								{3100, "could not stop torrent"}}; // TODO - move this out of here
+								{4100, "invalid parameter in query string or missing required parameter"},
+								{3100, "could not stop torrent"}};
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> request);
 	std::string stringfy_document(rapidjson::Document &document, bool pretty=true);
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request,
 		       			std::string const parameter);
 	void respond_invalid_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	bool validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const allowed_values);
-
-private:
-	struct api_parameter {
-		std::string name;
-		std::string value;
-		int format;
-		bool optional;
-		std::vector<std::string> allowed_values;	
-	};
-
+	std::string validate_all_parameters(SimpleWeb::CaseInsensitiveMultimap &query,
+			std::map<std::string, api_parameter> &required_parameters,
+			std::map<std::string, api_parameter> &optional_parameters);
 public:
 	RestAPI(ConfigManager config, TorrentManager& torrentManager);
 	~RestAPI();

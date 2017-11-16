@@ -72,6 +72,40 @@ void RestAPI::define_resources() {
 		{ this->webUI_get(response, request); };
 }
 
+std::string RestAPI::validate_all_parameters(SimpleWeb::CaseInsensitiveMultimap &query,
+	std::map<std::string, api_parameter> &required_parameters,
+	std::map<std::string, api_parameter> &optional_parameters) {
+
+	SimpleWeb::CaseInsensitiveMultimap::iterator it_query;
+	for(auto p = required_parameters.begin(); p != required_parameters.end(); p++) {
+		it_query = query.find(p->second.name);
+		if(it_query != query.end()) {
+			if(validate_parameter(query, it_query, p->second.format, p->second.allowed_values)) {
+				p->second.value = it_query->second;
+			}
+			else {
+				return p->second.name;
+			}
+		}
+		else {
+			return p->second.name;
+		}
+	}
+
+	for(auto p = optional_parameters.begin(); p != optional_parameters.end(); p++) {
+		it_query = query.find(p->second.name);
+		if(it_query != query.end()) {
+			if(validate_parameter(query, it_query, p->second.format, p->second.allowed_values)) {
+				p->second.value = it_query->second;
+			}
+			else {
+				return p->second.name;
+			}
+		}
+	}
+	return "";
+}
+
 // TODO - specify necessary headers in request and necessary headers in response
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
@@ -79,30 +113,17 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		return;
 	}
 
-	std::map<std::string, api_parameter> parameters = {
-		{"force_stop",{"force_stop","false",999,true,{"true","false"}}} };
-
+	std::map<std::string, api_parameter> required_parameters = {};
+	std::map<std::string, api_parameter> optional_parameters = {
+		{"force_stop",{"force_stop","false",api_parameter_format::boolean,{"true","false"}}} };
 	SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-	SimpleWeb::CaseInsensitiveMultimap::iterator it_query;
-	for(auto p = parameters.begin(); p != parameters.end(); p++) {
-		it_query = query.find(p->second.name);
-		if(it_query != query.end()) {
-			if(validate_parameter(query, it_query, p->second.format, p->second.allowed_values)) {
-				p->second.value = it_query->second;
-			}
-			else {
-				respond_invalid_parameter(response, request, p->second.name);
-				return;
-			}
-		}
-		else if(!p->second.optional) {
-			respond_invalid_parameter(response, request, p->second.name);
-			return;
-		}
+	std::string invalid_parameter = validate_all_parameters(query, required_parameters, optional_parameters);
+	if(invalid_parameter.length() > 0) { 
+		respond_invalid_parameter(response, request, invalid_parameter);
 	}
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
-	unsigned long int result = torrent_manager.stop_torrents(ids, str_to_bool(parameters.find("force_stop")->second.value));
+	unsigned long int result = torrent_manager.stop_torrents(ids, str_to_bool(optional_parameters.find("force_stop")->second.value));
 	
 	// Send response
 	rapidjson::Document document;
@@ -436,7 +457,7 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
 }
 
-bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const allowed_values) {
+bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const allowed_values) { /* TODO - if allowed_values not present, give default value. Assume any value is ok */
 	if(it_parameter == query.end()) {
 		return false;
 	}
