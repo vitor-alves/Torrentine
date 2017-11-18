@@ -43,7 +43,7 @@ int main(int argc, char const* argv[])
 
 
 void initialize_log(ConfigManager &config) {		
-	std::string log_file_path = "./log/bitsleek-log.txt";
+	std::string log_file_path = "log/bitsleek-log.txt";
 	size_t log_max_size = 5*1024*1024; // 5MB
 	int log_max_files = 3;	
 	plog::Severity log_severity = plog::Severity::debug;
@@ -80,6 +80,6 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 		LOG_ERROR << "Could not get config: " << e.what();
 		return;
 	}
-	bool success_t1 = torrent_manager.add_torrent_async("./test/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
-	bool success_t2 = torrent_manager.add_torrent_async("./test/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
+	bool success_t1 = torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/config/sample_torrents/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
+	bool success_t2 = torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/config/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
 }

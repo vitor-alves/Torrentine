@@ -5,11 +5,12 @@
 #include <cstddef>
 
 void ConfigManager::save_config() {
-	boost::property_tree::ini_parser::write_ini("config/config.ini", config_pt);
+	boost::property_tree::ini_parser::write_ini("/mnt/DATA/Codacao/bitsleek/config/config.ini", config_pt);
 }
 
+// TODO - pass config path as parameter to program.
 void ConfigManager::load_config() {
-	boost::property_tree::ini_parser::read_ini("config/config.ini", config_pt);
+	boost::property_tree::ini_parser::read_ini("/mnt/DATA/Codacao/bitsleek/config/config.ini", config_pt);
 }
 
 const std::string ConfigManager::get_config(std::string config_name) {

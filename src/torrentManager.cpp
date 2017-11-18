@@ -2,7 +2,7 @@
 #include <fstream>
 #include "torrentManager.h"
 #include "utility.h"
-#include "lib/plog/Log.h"
+#include "plog/Log.h"
 
 TorrentManager::TorrentManager() {
 	greatest_id = 1;

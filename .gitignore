@@ -28,11 +28,7 @@
 *.out
 *.app
 
-notes.txt
-bitsleek
-test/test_download/
+bin/
 *.swp
 *.vim
-temp/
-log/
 .fuse_hidden*

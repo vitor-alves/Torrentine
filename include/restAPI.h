@@ -1,10 +1,10 @@
 #include "simple-web-server/server_http.hpp"
 #include "torrentManager.h"
 #include "config.h"
-#include "lib/rapidjson/document.h"
-#include "lib/rapidjson/prettywriter.h"
-#include "lib/rapidjson/writer.h"
-#include "lib/rapidjson/stringbuffer.h"
+#include "rapidjson/document.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 #ifndef REST_API_H
 #define REST_API_H

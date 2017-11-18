@@ -1,6 +1,6 @@
 #include "torrentManager.h"
 #include "config.h"
-#include "lib/plog/Log.h"
+#include "plog/Log.h"
 
 std::unordered_map<std::string, plog::Severity> map_log_severity({{"none",plog::Severity::none},
 		       			{"fatal",plog::Severity::fatal},

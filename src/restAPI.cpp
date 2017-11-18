@@ -8,7 +8,7 @@
 #include "torrentManager.h"
 #include "config.h"
 #include "utility.h"
-#include "lib/plog/Log.h"
+#include "plog/Log.h"
 #include <typeinfo>
 #include <vector>
 #include <string> 
