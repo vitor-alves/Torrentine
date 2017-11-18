@@ -29,6 +29,8 @@
 *.app
 
 bin/
+temp/
+log/
 *.swp
 *.vim
 .fuse_hidden*
