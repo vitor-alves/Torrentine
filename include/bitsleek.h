@@ -1,6 +1,9 @@
 #include "torrentManager.h"
 #include "config.h"
 #include "plog/Log.h"
+#include <signal.h>
+
+const std::string bitsleek_version = "0.0.1";
 
 std::unordered_map<std::string, plog::Severity> map_log_severity({{"none",plog::Severity::none},
 		       			{"fatal",plog::Severity::fatal},
@@ -9,6 +12,7 @@ std::unordered_map<std::string, plog::Severity> map_log_severity({{"none",plog::
 					{"info",plog::Severity::info},
 					{"debug",plog::Severity::debug},
 					{"verbose",plog::Severity::verbose}});
-
+void shutdown_program(int s);
+void parse_arguments(int argc, char const* argv[], fs::path &config_file); 
 void initialize_log(ConfigManager &config);
 void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config);

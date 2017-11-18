@@ -43,8 +43,11 @@ void RestAPI::start_server() {
 }
 
 void RestAPI::stop_server() {
-	server.~Server();
-	delete server_thread;
+	server.stop();
+	if(server_thread->joinable()) {
+		server_thread->join();
+	}
+	LOG_DEBUG << "RestAPI has been stopped";
 }
 
 // WARNING: do not add or remove resources after start() is called

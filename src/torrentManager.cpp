@@ -165,4 +165,9 @@ unsigned long int TorrentManager::stop_torrents(const std::vector<unsigned long 
 	return 0;
 }
 
+// It returns the alert but does not pop it from the queue
+lt::alert const* TorrentManager::wait_for_alert(lt::time_duration max_wait) {
+	lt::alert const* a = session.wait_for_alert(max_wait);
+	return a;
+}
 
