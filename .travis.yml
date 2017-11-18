@@ -20,4 +20,8 @@ script:
   - make
 
 notifications:
+<<<<<<< HEAD
   email: false
+=======
+  email: false
+>>>>>>> a688d1c56a044a1e2b43ac02be6e11247e5dd4c7
