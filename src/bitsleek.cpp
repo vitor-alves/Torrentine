@@ -74,7 +74,7 @@ void parse_arguments(int argc, char const* argv[], fs::path &config_file) {
 
 
 void initialize_log(ConfigManager &config) {		
-	std::string log_file_path;
+	std::string log_file_path; // TODO should be fs::path
 	size_t log_max_size = 5*1024*1024; // 5MB
 	int log_max_files = 3;	
 	plog::Severity log_severity = plog::Severity::debug;

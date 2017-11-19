@@ -16,9 +16,10 @@ void ConfigManager::save_config(fs::path const config_file) {
 }
 
 void ConfigManager::load_config(fs::path const config_file) {
-	// TODO - check if config exists and is in valid format. If not valid, create one that is valid and rename de invalid.
+	// TODO - check if config exists and is in valid format. If not valid, create one that is valid and rename the invalid.
 	// If it doesnt exist create the file somewhere. Remember there are fields that NEED to exist, like the log path and other stuff
-	boost::property_tree::ini_parser::read_ini(config_file.string(), config_pt);
+
+	boost::property_tree::ini_parser::read_ini(config_file.string(), config_pt);	
 }
 
 const std::string ConfigManager::get_config(std::string config_name) {

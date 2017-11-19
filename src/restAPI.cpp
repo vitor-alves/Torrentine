@@ -35,6 +35,7 @@ RestAPI::~RestAPI() {
 }
 
 void RestAPI::start_server() {
+	// TODO - log start, port etc. Check if server from simple-web-server has any custom attributes that can be set
 	server_thread = new std::thread( [this](){ server.start(); } );
 
 	server.on_error = [](std::shared_ptr<HttpServer::Request> request, const SimpleWeb::error_code & ec) {
