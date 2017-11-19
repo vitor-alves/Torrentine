@@ -15,11 +15,11 @@
 RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
 	std::string api_port;
 	try {
-		torrent_file_path = config.get_config("directory.torrent_file_path");
-		download_path = config.get_config("directory.download_path"); 
-		api_port = config.get_config("api.port");
+		torrent_file_path = config.get_config<std::string>("directory.torrent_file_path");
+		download_path = config.get_config<std::string>("directory.download_path"); 
+		api_port = config.get_config<std::string>("api.port");
 	}
-	catch(const boost::property_tree::ptree_error &e) {
+	catch(const config_key_error &e) {
 		LOG_ERROR << e.what();
 	}
 	std::stringstream ss(api_port);

@@ -23,9 +23,16 @@ int main(int argc, char const* argv[])
 		std::cerr << "Problem parsing arguments: " << e.what() << std::endl;
 		return 1;
 	}
-
-	ConfigManager config(config_file);
 	
+	ConfigManager config;
+	try {
+		config.load_config(config_file);
+	}
+	catch(std::exception &e) {
+		std::cerr << "Problem with configuration: " << e.what() << std::endl;
+		return 2;
+	}
+
 	initialize_log(config);
 	
 	TorrentManager torrent_manager;
@@ -58,7 +65,7 @@ void parse_arguments(int argc, char const* argv[], fs::path &config_file) {
 	description.add_options()
 		("help,h", "Display this help message")
 		("version,v", "Display version information")
-		("config,c", po::value<fs::path>(&config_file)->value_name("file_path")->default_value("config/config.ini"), "Specify the configuration file path");
+		("config,c", po::value<fs::path>(&config_file)->value_name("file_path")->default_value("config/config.toml"), "Specify the configuration file path");
 	po::variables_map vmap;
 	po::store(po::command_line_parser(argc, argv).options(description).run(), vmap);
 	po::notify(vmap);
@@ -78,21 +85,21 @@ void initialize_log(ConfigManager &config) {
 	size_t log_max_size = 5*1024*1024; // 5MB
 	int log_max_files = 3;	
 	plog::Severity log_severity = plog::Severity::debug;
-	
+		
 	try {
 		std::stringstream sstream;
-		log_file_path = config.get_config("log.file_path");
-		sstream = std::stringstream(config.get_config("log.max_size"));
+		log_file_path = config.get_config<std::string>("log.file_path");
+		sstream = std::stringstream(config.get_config<std::string>("log.max_size"));
 		sstream >> log_max_size;
-		sstream = std::stringstream(config.get_config("log.max_files"));
+		sstream = std::stringstream(config.get_config<std::string>("log.max_files"));
 		sstream >> log_max_files;
-		std::unordered_map<std::string, plog::Severity>::iterator it_log_severity = map_log_severity.find(config.get_config("log.severity"));
+		std::unordered_map<std::string, plog::Severity>::iterator it_log_severity = map_log_severity.find(config.get_config<std::string>("log.severity"));
 		if(it_log_severity != map_log_severity.end())
 			log_severity = it_log_severity->second;
 		plog::init(log_severity, log_file_path.c_str(), log_max_size, log_max_files);
 		LOG_DEBUG << "Log initialized";
 	}
-	catch(const boost::property_tree::ptree_error &e) {
+	catch(const config_key_error &e) {
 		std::cerr << e.what() << std::endl;
 	       	LOG_ERROR << "Could not get config: " << e.what();
 		return;
@@ -103,10 +110,10 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 	std::string download_path = "./";
 
 	try {
-		download_path = config.get_config("directory.download_path");
+		download_path = config.get_config<std::string>("directory.download_path");
 		LOG_DEBUG << "Added test torrents";
 	}
-	catch(const boost::property_tree::ptree_error &e) {
+	catch(const config_key_error &e) {
 		std::cerr << e.what() << std::endl;
 		LOG_ERROR << "Could not get config: " << e.what();
 		return;
