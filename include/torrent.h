@@ -8,13 +8,13 @@ namespace lt = libtorrent;
 class Torrent {
 private:
 	lt::torrent_handle handle;
-	unsigned int id;
+	unsigned long int const id;
 
 public:
 	void set_handle(lt::torrent_handle handle);
 	lt::torrent_handle get_handle();
-	const unsigned long int get_id();
-	Torrent(const unsigned long int id);
+	unsigned long int const get_id();
+	Torrent(unsigned long int const id);
 	~Torrent();
 };
 

@@ -16,7 +16,7 @@ namespace lt = libtorrent;
 class TorrentManager {
 private:
 	lt::session session;
-	std::vector<Torrent*> torrents;
+	std::vector<std::shared_ptr<Torrent>> torrents;
 	unsigned long int greatest_id;	
 
 public:
@@ -25,8 +25,8 @@ public:
 	bool add_torrent_async(const std::string filename,const std::string save_path);
 	void check_alerts();
 	void update_torrent_console_view();
-	const std::vector<Torrent*>& get_torrents();
-	const unsigned long int generate_torrent_id();
+	std::vector<std::shared_ptr<Torrent>> const & get_torrents();
+	unsigned long int const generate_torrent_id();
 	bool remove_torrent(unsigned long int id, bool remove_data);
 	unsigned long int stop_torrents(const std::vector<unsigned long int> ids, bool force_stop);
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);

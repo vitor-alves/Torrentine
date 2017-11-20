@@ -8,12 +8,10 @@ lt::torrent_handle Torrent::get_handle() {
 	return handle;
 }
 
-Torrent::Torrent(const unsigned long int id) {
-	this->id = id;
-	// TODO - confirm ID does not already exists
+Torrent::Torrent(unsigned long int const id) : id(id) {
 }
 
-const unsigned long int Torrent::get_id() {
+unsigned long int const Torrent::get_id() {
 	return id;
 }
 

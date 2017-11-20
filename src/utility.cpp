@@ -6,7 +6,7 @@
 #include <cctype>
 #include "utility.h"
 
-std::string random_string(std::string chars, int size) {
+std::string random_string(std::string chars, int const size) {
 	std::random_device rgn;
 	std::uniform_int_distribution<> index_dist(0, (chars.size()-1));
 	std::stringstream ss;
@@ -16,7 +16,7 @@ std::string random_string(std::string chars, int size) {
 	return ss.str();
 }
 
-bool file_to_buffer(std::vector<char> &buffer, const std::string filename) {
+bool file_to_buffer(std::vector<char> &buffer, std::string const filename) {
 	std::ifstream ifs(filename);	
 	if (ifs.eof() || ifs.fail()) {
 		return false;
@@ -32,7 +32,7 @@ bool file_to_buffer(std::vector<char> &buffer, const std::string filename) {
 }
 
 // Splits string of integers saparated by char 'delim'. Assumes string is in valid format.
-std::vector<unsigned long int> split_string_to_ulong(const std::string &str, const char delim) {
+std::vector<unsigned long int> split_string_to_ulong(std::string const &str, const char delim) {
 	std::vector<unsigned long int> numbers;
 	std::stringstream ss(str);
 

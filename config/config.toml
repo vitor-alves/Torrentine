@@ -1,11 +1,11 @@
-[log]
-	file_path = "/mnt/DATA/Codacao/bitsleek/log/bitsleek-log.txt"
-	max_size = "5242880"
-	max_files = "3"
-	severity = "debug"
-[api]
-	port = "8040"
 [directory]
-	download_path = "/mnt/DATA/Codacao/bitsleek/temp/downloads/"
-	a = 5
 	torrent_file_path = "/mnt/DATA/Codacao/temp/torrent_files/"
+	download_path = "/mnt/DATA/Codacao/bitsleek/temp/downloads/"
+[log]
+	max_files = 3
+	severity = "debug"
+	max_size = 5242880
+	file_path = "/mnt/DATA/Codacao/bitsleek/log/bitsleek-log.txt"
+[api]
+	address = "0.0.0.0"
+	port = 8040

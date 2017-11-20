@@ -19,7 +19,7 @@ int main(int argc, char const* argv[])
 	try {
 		parse_arguments(argc, argv, config_file);
 	}
-	catch(std::exception const &e) {
+	catch(po::error const &e) {
 		std::cerr << "Problem parsing arguments: " << e.what() << std::endl;
 		return 1;
 	}
@@ -28,8 +28,15 @@ int main(int argc, char const* argv[])
 	try {
 		config.load_config(config_file);
 	}
-	catch(std::exception &e) {
-		std::cerr << "Problem with configuration: " << e.what() << std::endl;
+	catch(cpptoml::parse_exception const &e) {
+		// Try appending ".old" to config file so next time program starts it creates a new default config file
+		std::stringstream ss;
+		ss << config_file.string() << ".old";
+		bool result = std::rename(config_file.string().c_str(), ss.str().c_str()); 
+		std::cerr << "Problem with configuration file " << config_file.string() << ". " << e.what() <<
+			". This usually happens if the configuration file is in an invalid state or \
+		       	when your user has no read/write permissions. Deleting this file may fix the \
+			issue next time you run the program." << std::endl;
 		return 2;
 	}
 
@@ -42,7 +49,7 @@ int main(int argc, char const* argv[])
 	RestAPI api(config, torrent_manager);
 	api.start_server();
 
-	signal(SIGINT, shutdown_program);	
+	signal(SIGINT, shutdown_program);
 	while(!shutdown_flag) {
 		torrent_manager.update_torrent_console_view();
 		torrent_manager.check_alerts();
@@ -53,14 +60,17 @@ int main(int argc, char const* argv[])
 	
 	api.stop_server();
 	
+	// TODO - save torrents state
+
 	return 0;
 }
 
 void shutdown_program(int s) {
+	LOG_INFO << "Shutting down program";
 	shutdown_flag = 1;	
 }
 
-void parse_arguments(int argc, char const* argv[], fs::path &config_file) {
+void parse_arguments(int const argc, char const* argv[], fs::path &config_file) {
 	po::options_description description("Bitsleek Usage");
 	description.add_options()
 		("help,h", "Display this help message")
@@ -80,30 +90,30 @@ void parse_arguments(int argc, char const* argv[], fs::path &config_file) {
 }
 
 
-void initialize_log(ConfigManager &config) {		
-	std::string log_file_path; // TODO should be fs::path
+bool initialize_log(ConfigManager &config) {		
+	fs::path log_file_path = "./";
 	size_t log_max_size = 5*1024*1024; // 5MB
 	int log_max_files = 3;	
 	plog::Severity log_severity = plog::Severity::debug;
 		
 	try {
 		std::stringstream sstream;
-		log_file_path = config.get_config<std::string>("log.file_path");
-		sstream = std::stringstream(config.get_config<std::string>("log.max_size"));
-		sstream >> log_max_size;
-		sstream = std::stringstream(config.get_config<std::string>("log.max_files"));
-		sstream >> log_max_files;
-		std::unordered_map<std::string, plog::Severity>::iterator it_log_severity = map_log_severity.find(config.get_config<std::string>("log.severity"));
+		log_file_path = fs::path(config.get_config<std::string>("log.file_path"));
+		log_max_size = config.get_config<size_t>("log.max_size");
+		log_max_files = config.get_config<int>("log.max_files");
+		std::unordered_map<std::string, plog::Severity>::iterator it_log_severity =
+		       	map_log_severity.find(config.get_config<std::string>("log.severity"));
 		if(it_log_severity != map_log_severity.end())
 			log_severity = it_log_severity->second;
-		plog::init(log_severity, log_file_path.c_str(), log_max_size, log_max_files);
-		LOG_DEBUG << "Log initialized";
 	}
-	catch(const config_key_error &e) {
-		std::cerr << e.what() << std::endl;
-	       	LOG_ERROR << "Could not get config: " << e.what();
-		return;
+	catch(config_key_error const &e) {
+		std::cerr << "The log was not initialized. Could not get config when initializing log: "
+		       		<< e.what() << std::endl;
+		return false;
 	}
+	plog::init(log_severity, log_file_path.c_str(), log_max_size, log_max_files);
+	LOG_DEBUG << "Log initialized";
+	return true;
 }
 
 void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {	
@@ -114,7 +124,6 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 		LOG_DEBUG << "Added test torrents";
 	}
 	catch(const config_key_error &e) {
-		std::cerr << e.what() << std::endl;
 		LOG_ERROR << "Could not get config: " << e.what();
 		return;
 	}

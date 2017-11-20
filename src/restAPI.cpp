@@ -11,22 +11,19 @@
 #include "plog/Log.h"
 #include <typeinfo>
 #include <vector>
-#include <string> 
-RestAPI::RestAPI(ConfigManager config, TorrentManager& torrent_manager) : torrent_manager(torrent_manager) {
-	std::string api_port;
+#include <string>
+
+RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torrent_manager(torrent_manager) {
 	try {
 		torrent_file_path = config.get_config<std::string>("directory.torrent_file_path");
 		download_path = config.get_config<std::string>("directory.download_path"); 
-		api_port = config.get_config<std::string>("api.port");
+		server.config.port = config.get_config<unsigned short>("api.port");
+		server.config.address = config.get_config<std::string>("api.address");	
 	}
-	catch(const config_key_error &e) {
-		LOG_ERROR << e.what();
+	catch(config_key_error const &e) {
+		LOG_ERROR << "Could not get config: " << e.what();
 	}
-	std::stringstream ss(api_port);
-	ss >> server.config.port;
-	if(ss.fail()) {
-		LOG_ERROR << "Problem with api port " << api_port <<" from config";
-	}	
+
 	define_resources();
 }		
 
@@ -35,11 +32,22 @@ RestAPI::~RestAPI() {
 }
 
 void RestAPI::start_server() {
-	// TODO - log start, port etc. Check if server from simple-web-server has any custom attributes that can be set
-	server_thread = new std::thread( [this](){ server.start(); } );
+	server_thread = std::make_unique<std::thread>( [&]() { 
+				try {
+					server.start();
+					LOG_INFO << "Web UI and REST API server have been started and are listening on "
+				       	<< server.config.address << ":" << server.config.port;
+				}
+				catch(std::exception const &e) {
+					LOG_ERROR << "Web server error: " << e.what() << ". Is port " <<
+				       	server.config.port << " already in use?" ;
+					std::cerr << "Web server error: " << e.what() << ". Is port " <<
+				       	server.config.port << " already in use?"
+					<< " Check log files for more information." << std::endl;
+				}} );
 
 	server.on_error = [](std::shared_ptr<HttpServer::Request> request, const SimpleWeb::error_code & ec) {
-		LOG_ERROR << ec.message();
+		LOG_ERROR << "Web server error: " << ec.message();
 	};
 }
 
@@ -47,8 +55,8 @@ void RestAPI::stop_server() {
 	server.stop();
 	if(server_thread->joinable()) {
 		server_thread->join();
+		LOG_DEBUG << "REST API server thread has been joined";
 	}
-	LOG_DEBUG << "RestAPI has been stopped";
 }
 
 // WARNING: do not add or remove resources after start() is called
@@ -145,8 +153,8 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		std::string http_status = "202 Accepted";
 		std::string http_header = "Content-Length: " + std::to_string(json.length());
 		
-		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to "
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address << " Message: " << message;
 		
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	}
@@ -165,8 +173,8 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		std::string http_status = "404 Not Found";
 		std::string http_header = "Content-Length: " + std::to_string(json.length());
 	
-		LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to "
-			<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address << " Message: " << message;
 
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	}
@@ -174,11 +182,11 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 
 void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	try {	
-		const std::vector<Torrent*> torrents = torrent_manager.get_torrents();
+		const std::vector<std::shared_ptr<Torrent>> torrents = torrent_manager.get_torrents();
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		for(Torrent* torrent : torrents) {
+		for(std::shared_ptr<Torrent> torrent : torrents) {
 			lt::torrent_status status = torrent->get_handle().status();	
 			rapidjson::Value object(rapidjson::kObjectType);
 			rapidjson::Value temp_value;
@@ -383,8 +391,7 @@ void RestAPI::webUI_get(std::shared_ptr<HttpServer::Response> response, std::sha
 	}
 }
 
-// Check headers for Authorization
-bool RestAPI::validate_authorization(std::shared_ptr<HttpServer::Request> request) {
+bool RestAPI::validate_authorization(std::shared_ptr<HttpServer::Request> const request) {
 	SimpleWeb::CaseInsensitiveMultimap header = request->header;
 	auto authorization = header.find("Authorization");
 	if(authorization != header.end() && is_authorization_valid(authorization->second)) {
@@ -395,7 +402,7 @@ bool RestAPI::validate_authorization(std::shared_ptr<HttpServer::Request> reques
 	}
 }
 
-void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request) {
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -414,11 +421,11 @@ void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response
 
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	
-	LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
-		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
+	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+		<< " to " << request->remote_endpoint_address << " Message: " << message;
 }
 
-std::string RestAPI::stringfy_document(rapidjson::Document &document, bool const pretty) {
+std::string RestAPI::stringfy_document(rapidjson::Document const &document, bool const pretty) {
 	rapidjson::StringBuffer string_buffer;
 	std::string json;
 
@@ -436,7 +443,7 @@ std::string RestAPI::stringfy_document(rapidjson::Document &document, bool const
 }
 
 
-void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request, std::string const parameter) {
+void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request, std::string const parameter) {
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -456,8 +463,8 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	
-	LOG_DEBUG << "HTTP " << request->method << " Response " << http_status << " to " 
-		<< request->remote_endpoint_address << " Path: " << request->path << " Message: " << message;
+	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+		<< " to " << request->remote_endpoint_address << " Message: " << message;
 }
 
 /* TODO - create logic */
