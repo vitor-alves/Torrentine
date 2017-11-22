@@ -168,3 +168,32 @@ lt::alert const* TorrentManager::wait_for_alert(lt::time_duration max_wait) {
 	return a;
 }
 
+// TODO - Improve this ASAP
+void TorrentManager::load_state() {
+	std::ifstream ifs;
+	ifs.open("state/session.dat");
+	std::filebuf *fb = ifs.rdbuf();
+	std::size_t size = fb->pubseekoff(0, ifs.end, ifs.in);
+	fb->pubseekpos(0, ifs.in);
+	lt::lazy_entry e;
+	lt::error_code ec;
+	char *buffer = new char[size];
+	fb->sgetn(buffer, size);
+	ifs.close();
+	lt::bdecode_node node;
+	lt::bdecode(buffer, buffer + size, node, ec);
+	LOG_DEBUG << buffer;
+	session.load_state(node);
+	delete[] buffer;
+}
+
+// TODO - improve
+void TorrentManager::save_session() {
+	lt::entry e;
+	session.save_state(e);
+	std::filebuf fb;
+	fb.open("state/session.dat", std::ios::out);
+	std::ostream os(&fb);
+	os << e;
+	fb.close();
+}

@@ -6,6 +6,7 @@
 #include <libtorrent/bencode.hpp>
 #include <libtorrent/lazy_entry.hpp>
 #include <libtorrent/peer_info.hpp>
+#include "libtorrent/session_handle.hpp"
 #include "torrent.h"
 
 #ifndef TORRENT_MANAGER_H
@@ -30,6 +31,8 @@ public:
 	bool remove_torrent(unsigned long int id, bool remove_data);
 	unsigned long int stop_torrents(const std::vector<unsigned long int> ids, bool force_stop);
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);
+	void save_session();
+	void load_state();
 };
 
 #endif

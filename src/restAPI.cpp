@@ -132,6 +132,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	std::string invalid_parameter = validate_all_parameters(query, required_parameters, optional_parameters);
 	if(invalid_parameter.length() > 0) { 
 		respond_invalid_parameter(response, request, invalid_parameter);
+		return;
 	}
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');

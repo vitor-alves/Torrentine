@@ -43,7 +43,8 @@ int main(int argc, char const* argv[])
 	initialize_log(config);
 	
 	TorrentManager torrent_manager;
-	
+	torrent_manager.load_state();
+
 	add_test_torrents(torrent_manager, config);
 
 	RestAPI api(config, torrent_manager);
@@ -56,12 +57,12 @@ int main(int argc, char const* argv[])
 		torrent_manager.wait_for_alert(lt::milliseconds(1000));	
 	}
 	
+	torrent_manager.save_session();
+
 	config.save_config(config_file);
 	
 	api.stop_server();
 	
-	// TODO - save torrents state
-
 	return 0;
 }
 

@@ -1,0 +1,102 @@
+dictionary
+ [dht]
+  dictionary
+   [aggressive_lookups]     1
+   [block_ratelimit]     5
+   [block_timeout]     300
+   [enforce_node_id]     0
+   [extended_routing_table]     1
+   [ignore_dark_internet]     1
+   [item_lifetime]     0
+   [max_dht_items]     700
+   [max_fail_count]     20
+   [max_peers]     5000
+   [max_peers_reply]     100
+   [max_torrent_search_reply]     20
+   [max_torrents]     2000
+   [privacy_lookups]     0
+   [read_only]     0
+   [restrict_routing_ips]     1
+   [restrict_search_ips]     1
+   [search_branching]     5
+ [dht state]
+  dictionary
+   [node-id]     72abe9c757a2f81d7f33ce836d289eb505387f3b
+   [nodes]
+    list
+     6dfc44832b75
+     2e8a26ac1ae1
+     b058134d6f85
+     4439b156c173
+     242a1c193410
+     7b7579cf1ae1
+     ca6c1f16e13e
+     ca6796fd1ae1
+     314f11e699ce
+     5f1ad8571ae2
+     256e3b491ae1
+     b99cb38ec937
+     5fa3a0180402
+     80440f491ae2
+     2ea103e4c974
+     706348551bb5
+     bc99e4c75277
+     d4fc8fde7ea3
+     5e7b74ba34c8
+     5b796e06c8d5
+     5fa353a27cb0
+     2585096cda3a
+     58e9378bd06b
+     d5884fcdc2e1
+     05bdb781c834
+     0e85a5ba3e11
+     05bdb9391af4
+     4d283de60405
+     7901c2f44b78
+     4a809c0ac491
+     5215b9c021ad
+     59b5038d9bfe
+     5f49fc26c5bd
+     570e00a4ee69
+     ii*u[n
+     599bd87bf558
+     1f30c155ec40
+     d5e7986739e3
+     50c4390a0404
+     77cf382dd421
+     74fae0231ae1
+     d3bb1e7c2f43
+     558d7ecf1ae1
+     bc2074051ae1
+     53dc3ea45063
+     bb02e4a0965f
+     51070d54c8d5
+     b220de4be7c3
+     5e172394c8d5
+     5fd394a6ed44
+     5e4027c4e552
+     4f6b104f42d9
+     52923235c8d5
+     b962596e1ae1
+     d515041e1ae2
+     628e1b6cc8d5
+     b3d321b4c000
+     5b79b898e306
+     0587a479fa16
+     6425ef481ae9
+     5b79a9bcc8d5
+     ac71ea4af6f4
+     05bdbb5a1afe
+     b29625a31ae2
+     05275d7d1ae1
+     5f1cfb841ae1
+     4d55d12e742b
+     c35ea1b90404
+     add4cd041af4
+     253b26e4dd8e
+     70a41fa8ea24
+     3e39aefb78c6
+ [feeds]
+  list
+ [settings]
+  dictionary
