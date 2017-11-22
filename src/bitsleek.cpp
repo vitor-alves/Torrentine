@@ -43,7 +43,7 @@ int main(int argc, char const* argv[])
 	initialize_log(config);
 	
 	TorrentManager torrent_manager;
-	torrent_manager.load_state();
+	torrent_manager.load_session_state(config);
 
 	add_test_torrents(torrent_manager, config);
 
@@ -57,7 +57,7 @@ int main(int argc, char const* argv[])
 		torrent_manager.wait_for_alert(lt::milliseconds(1000));	
 	}
 	
-	torrent_manager.save_session();
+	torrent_manager.save_session_state(config);
 
 	config.save_config(config_file);
 	

@@ -168,32 +168,60 @@ lt::alert const* TorrentManager::wait_for_alert(lt::time_duration max_wait) {
 	return a;
 }
 
-// TODO - Improve this ASAP
-void TorrentManager::load_state() {
-	std::ifstream ifs;
-	ifs.open("state/session.dat");
-	std::filebuf *fb = ifs.rdbuf();
-	std::size_t size = fb->pubseekoff(0, ifs.end, ifs.in);
-	fb->pubseekpos(0, ifs.in);
-	lt::lazy_entry e;
+bool TorrentManager::load_session_state(ConfigManager &config) {
+	fs::path load_path = "./";
+	try {
+		load_path = fs::path(config.get_config<std::string>("directory.save_state_path"));
+	}
+	catch(config_key_error const &e) {
+		LOG_ERROR << "Session state was not loaded. Could not get config: " << e.what();
+		return false;
+	}
+	std::vector<char> buffer;
+	bool success = file_to_buffer(buffer, load_path.string());
+	if(!success) {
+		LOG_ERROR << "Could not load session state file at " << load_path.string();
+		return false;
+	}
 	lt::error_code ec;
-	char *buffer = new char[size];
-	fb->sgetn(buffer, size);
-	ifs.close();
 	lt::bdecode_node node;
-	lt::bdecode(buffer, buffer + size, node, ec);
-	LOG_DEBUG << buffer;
+	char const *buf = buffer.data();
+	lt::bdecode(buf, buf + buffer.size(), node, ec);
 	session.load_state(node);
-	delete[] buffer;
+	return true;
 }
 
-// TODO - improve
-void TorrentManager::save_session() {
+bool TorrentManager::save_session_state(ConfigManager &config) {
 	lt::entry e;
 	session.save_state(e);
 	std::filebuf fb;
-	fb.open("state/session.dat", std::ios::out);
-	std::ostream os(&fb);
-	os << e;
-	fb.close();
+	fs::path save_path = "./";
+	try {
+		save_path = fs::path(config.get_config<std::string>("directory.save_session_path"));
+	}
+	catch(config_key_error const &e) {
+		LOG_ERROR << "Session state was not saved. Could not get config: " << e.what();
+		return false;
+	}
+
+	fb.open(save_path.string(), std::ios::out);
+	if(fb.is_open()) {
+		std::ostream os(&fb);
+		os << e;
+		fb.close();
+		LOG_INFO << "Session was saved at " << save_path.string();
+		return true;
+	}
+	else {
+		LOG_ERROR << "Session was not saved. Could not open save session file at " << save_path.string();
+		return false;
+	}
 }
+
+/*void save_fast_resume() {
+
+	for(std::shared_ptr<Torrent> torrent : torrents) {
+		torrent->get_handle().save_resume_data();
+	}
+}*/
+

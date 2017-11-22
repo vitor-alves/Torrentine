@@ -7,12 +7,15 @@
 #include <libtorrent/lazy_entry.hpp>
 #include <libtorrent/peer_info.hpp>
 #include "libtorrent/session_handle.hpp"
+#include <boost/filesystem.hpp>
 #include "torrent.h"
+#include "config.h"
 
 #ifndef TORRENT_MANAGER_H
 #define TORRENT_MANAGER_H
 
 namespace lt = libtorrent;
+namespace fs = boost::filesystem;
 
 class TorrentManager {
 private:
@@ -31,8 +34,8 @@ public:
 	bool remove_torrent(unsigned long int id, bool remove_data);
 	unsigned long int stop_torrents(const std::vector<unsigned long int> ids, bool force_stop);
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);
-	void save_session();
-	void load_state();
+	bool save_session_state(ConfigManager &config);
+	bool load_session_state(ConfigManager &config);
 };
 
 #endif
