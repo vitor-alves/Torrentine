@@ -12,7 +12,7 @@ private:
 
 public:
 	void set_handle(lt::torrent_handle handle);
-	lt::torrent_handle get_handle();
+	lt::torrent_handle &get_handle();
 	unsigned long int const get_id();
 	Torrent(unsigned long int const id);
 	~Torrent();

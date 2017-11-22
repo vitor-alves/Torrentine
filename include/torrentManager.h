@@ -21,7 +21,8 @@ class TorrentManager {
 private:
 	lt::session session;
 	std::vector<std::shared_ptr<Torrent>> torrents;
-	unsigned long int greatest_id;	
+	unsigned long int greatest_id;
+	unsigned long int outstanding_resume_data;
 
 public:
 	TorrentManager();
@@ -36,6 +37,7 @@ public:
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);
 	bool save_session_state(ConfigManager &config);
 	bool load_session_state(ConfigManager &config);
+	void save_fast_resume();
 };
 
 #endif

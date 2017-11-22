@@ -3,9 +3,11 @@
 #include "torrentManager.h"
 #include "utility.h"
 #include "plog/Log.h"
+#include <fstream>
 
 TorrentManager::TorrentManager() {
 	greatest_id = 1;
+	outstanding_resume_data = 0;
 }
 
 TorrentManager::~TorrentManager() {
@@ -218,10 +220,54 @@ bool TorrentManager::save_session_state(ConfigManager &config) {
 	}
 }
 
-/*void save_fast_resume() {
-
+// TODO - incomplete
+void TorrentManager::save_fast_resume() {
+	// Pause session so fast resume data is valid
+	session.pause();
 	for(std::shared_ptr<Torrent> torrent : torrents) {
-		torrent->get_handle().save_resume_data();
+		lt::torrent_handle h = torrent->get_handle();
+		if(!h.is_valid())
+			continue;
+		lt::torrent_status s = h.status();
+		if(!s.has_metadata)
+			continue;
+		if(!s.need_save_resume)
+			continue;
+		h.save_resume_data();
+		outstanding_resume_data++;
 	}
-}*/
+
+	while(outstanding_resume_data > 0) {
+		lt::alert *a = session.wait_for_alert(std::chrono::seconds(10));
+
+		if(a==0)
+			break;
+
+		std::vector<lt::alert*> alerts;
+		session.pop_alerts(&alerts);
+
+		for(lt::alert *a : alerts) {
+			if(lt::alert_cast<lt::save_resume_data_failed_alert>(a)) {
+				// TODO - do something about this
+				outstanding_resume_data--;
+				continue;
+			}
+		
+			lt::save_resume_data_alert const *rd = lt::alert_cast<lt::save_resume_data_alert>(a);
+			if(rd == 0) {
+				// TODO - process alert in the main alert processing method. We cant ignore this alert.
+				continue;
+			}
+	
+			lt::torrent_handle h = rd->handle;
+			lt::torrent_status ts = h.status(lt::torrent_handle::query_name);
+			std::string file = "state/fastresume/"+ts.name+".fastresume";
+			std::ofstream out(file.c_str(), std::ios_base::binary);
+			out.unsetf(std::ios_base::skipws);
+			lt::bencode(std::ostream_iterator<char>(out), *rd->resume_data);
+			outstanding_resume_data--;
+		}
+
+	}
+}
 

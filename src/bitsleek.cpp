@@ -42,6 +42,7 @@ int main(int argc, char const* argv[])
 
 	initialize_log(config);
 	
+	// TODO - torrentManager should have a referente to config in its constructor and I should remove all config from method calls	
 	TorrentManager torrent_manager;
 	torrent_manager.load_session_state(config);
 
@@ -57,6 +58,7 @@ int main(int argc, char const* argv[])
 		torrent_manager.wait_for_alert(lt::milliseconds(1000));	
 	}
 	
+	torrent_manager.save_fast_resume();
 	torrent_manager.save_session_state(config);
 
 	config.save_config(config_file);
