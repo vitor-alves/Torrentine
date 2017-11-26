@@ -38,6 +38,7 @@ public:
 	bool save_session_state(ConfigManager &config);
 	bool load_session_state(ConfigManager &config);
 	void save_fast_resume();
+	void load_fast_resume();
 };
 
 #endif

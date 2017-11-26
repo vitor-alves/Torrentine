@@ -4,7 +4,10 @@
 #include "utility.h"
 #include "plog/Log.h"
 #include <fstream>
+#include <sstream>
 
+
+// TODO - support settings_pack
 TorrentManager::TorrentManager() {
 	greatest_id = 1;
 	outstanding_resume_data = 0;
@@ -220,10 +223,12 @@ bool TorrentManager::save_session_state(ConfigManager &config) {
 	}
 }
 
-// TODO - incomplete
+// TODO - incomplete - read documentation on libtorrent website! Read the notes! Very informative, specially about save resume 
+// when a torrent goes to paused state, completed, etc. THere is also a note talking about full allocation and fast resume.
 void TorrentManager::save_fast_resume() {
 	// Pause session so fast resume data is valid
-	session.pause();
+	session.pause(); // TODO - pause the session only when we are shutting down. In intermittent fast resume data save (every few minutes) 
+			// There is not need to pause the session.
 	for(std::shared_ptr<Torrent> torrent : torrents) {
 		lt::torrent_handle h = torrent->get_handle();
 		if(!h.is_valid())
@@ -261,7 +266,9 @@ void TorrentManager::save_fast_resume() {
 	
 			lt::torrent_handle h = rd->handle;
 			lt::torrent_status ts = h.status(lt::torrent_handle::query_name);
-			std::string file = "state/fastresume/"+ts.name+".fastresume";
+			std::stringstream ss_name;
+			ss_name << ts.info_hash;
+			std::string file = "state/fastresume/"+ ss_name.str() +".fastresume";
 			std::ofstream out(file.c_str(), std::ios_base::binary);
 			out.unsetf(std::ios_base::skipws);
 			lt::bencode(std::ostream_iterator<char>(out), *rd->resume_data);
@@ -271,3 +278,48 @@ void TorrentManager::save_fast_resume() {
 	}
 }
 
+// TODO - read http://libtorrent.org/manual-ref.html#fast-resume specially the info field.
+// line 65 - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/src/read_resume_data.cpp
+// line 130 - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/test/test_read_resume.cpp
+// line 174 - https://github.com/arvidn/libtorrent/blob/7730eea4011b75e700cadc385cdde52cc9f8a2ad/test/test_resume.cpp
+// http://www.libtorrent.org/reference-Core.html
+// http://www.libtorrent.org/manual-ref.html#fast-resume
+void TorrentManager::load_fast_resume() {
+	std::string filenameresume = "state/fastresume/fd5fdf21aef4505451861da97aa39000ed852988.fastresume";
+	// TODO - we should use file_to_buffer() here. But i am not sure about how it handles binary files
+	std::ifstream ifs(filenameresume, std::ios_base::binary);
+	std::istream_iterator<char> start(ifs), end;
+	std::vector<char> bufferresume(start, end);
+
+
+
+
+	std::vector<char> buffer;
+	std::string filename = "test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent";
+	if(!file_to_buffer(buffer, filename)) {
+		LOG_ERROR << "A problem occured while adding torrent with filename " << filename;
+	}
+	
+	lt::bdecode_node node;
+	char const *buf = buffer.data();	
+	lt::error_code ec;
+	int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
+	if(ec) {
+		LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
+	}	
+	lt::add_torrent_params atp;
+	lt::torrent_info info(node);	
+	boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
+	atp.ti = t_info;
+	atp.save_path = "temp/downloads/";
+
+
+
+	if(!file_to_buffer(bufferresume, filenameresume)) {
+		LOG_ERROR << "A problem occured while loading fast resume data from " << filenameresume;
+	}
+	else {
+		atp.resume_data = bufferresume;
+		session.async_add_torrent(atp);
+	}
+}

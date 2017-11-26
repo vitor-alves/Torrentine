@@ -45,8 +45,9 @@ int main(int argc, char const* argv[])
 	// TODO - torrentManager should have a referente to config in its constructor and I should remove all config from method calls	
 	TorrentManager torrent_manager;
 	torrent_manager.load_session_state(config);
-
-	add_test_torrents(torrent_manager, config);
+	torrent_manager.load_fast_resume();
+	//add_test_torrents(torrent_manager, config);
+	
 
 	RestAPI api(config, torrent_manager);
 	api.start_server();
