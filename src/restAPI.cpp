@@ -34,6 +34,8 @@ RestAPI::~RestAPI() {
 void RestAPI::start_server() {
 	server_thread = std::make_unique<std::thread>( [&]() { 
 				try {
+					// TODO - start() blocks until the server stops... Fix this.
+					// https://github.com/eidheim/Simple-Web-Server/issues/176
 					server.start();
 					LOG_INFO << "Web UI and REST API server have been started and are listening on "
 				       	<< server.config.address << ":" << server.config.port;

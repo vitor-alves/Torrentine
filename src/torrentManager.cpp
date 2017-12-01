@@ -284,42 +284,26 @@ void TorrentManager::save_fast_resume() {
 // line 174 - https://github.com/arvidn/libtorrent/blob/7730eea4011b75e700cadc385cdde52cc9f8a2ad/test/test_resume.cpp
 // http://www.libtorrent.org/reference-Core.html
 // http://www.libtorrent.org/manual-ref.html#fast-resume
-void TorrentManager::load_fast_resume() {
-	std::string filenameresume = "state/fastresume/fd5fdf21aef4505451861da97aa39000ed852988.fastresume";
-	// TODO - we should use file_to_buffer() here. But i am not sure about how it handles binary files
-	std::ifstream ifs(filenameresume, std::ios_base::binary);
+void TorrentManager::load_fast_resume(ConfigManager &config) {
+	std::string filename = "state/fastresume/fd5fdf21aef4505451861da97aa39000ed852988.fastresume";
+
+	// TODO - Treat errors opening file	
+	std::ifstream ifs(filename, std::ios_base::binary);
+	ifs.unsetf(std::ios_base::skipws);
 	std::istream_iterator<char> start(ifs), end;
-	std::vector<char> bufferresume(start, end);
-
-
-
-
-	std::vector<char> buffer;
-	std::string filename = "test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent";
-	if(!file_to_buffer(buffer, filename)) {
-		LOG_ERROR << "A problem occured while adding torrent with filename " << filename;
-	}
+	std::vector<char> buffer(start, end);
+	char const *buf = buffer.data();	
 	
 	lt::bdecode_node node;
-	char const *buf = buffer.data();	
 	lt::error_code ec;
 	int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
 	if(ec) {
 		LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
-	}	
+		return;
+	}
 	lt::add_torrent_params atp;
-	lt::torrent_info info(node);	
-	boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
-	atp.ti = t_info;
-	atp.save_path = "temp/downloads/";
+	atp.name = node.dict_find_string_value("name");
+	std::cout << "OiBR " << node.dict_find_string_value("file-format"); 
 
-
-
-	if(!file_to_buffer(bufferresume, filenameresume)) {
-		LOG_ERROR << "A problem occured while loading fast resume data from " << filenameresume;
-	}
-	else {
-		atp.resume_data = bufferresume;
-		session.async_add_torrent(atp);
-	}
+	//session.async_add_torrent(atp);
 }
