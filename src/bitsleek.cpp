@@ -46,7 +46,7 @@ int main(int argc, char const* argv[])
 	TorrentManager torrent_manager;
 	torrent_manager.load_session_state(config);
 	torrent_manager.load_fast_resume(config);
-	//add_test_torrents(torrent_manager, config);
+	add_test_torrents(torrent_manager, config);
 	
 
 	RestAPI api(config, torrent_manager);
@@ -125,7 +125,6 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 
 	try {
 		download_path = config.get_config<std::string>("directory.download_path");
-		LOG_DEBUG << "Added test torrents";
 	}
 	catch(const config_key_error &e) {
 		LOG_ERROR << "Could not get config: " << e.what();
@@ -133,4 +132,5 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 	}
 	bool success_t1 = torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/sample_torrents/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
 	bool success_t2 = torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
+	LOG_DEBUG << "Added test torrents";
 }

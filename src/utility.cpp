@@ -51,3 +51,20 @@ bool str_to_bool(std::string s) {
 	std::istringstream(s) >> std::boolalpha >> b;
 	return b;
 }
+
+bool get_files_in_folder(const fs::path root, const std::string extension, std::vector <fs::path> &filepaths) {
+	if(!fs::exists(root) || !fs::is_directory(root)) {
+		return false;
+	}	
+
+	fs::recursive_directory_iterator it(root);
+	fs::recursive_directory_iterator end_it;
+
+	while(it != end_it) {
+		if(fs::is_regular_file(*it) && it->path().extension() == extension) {
+			filepaths.push_back(it->path());
+		}
+		it++;
+	}
+	return true;
+}

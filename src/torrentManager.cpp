@@ -6,7 +6,6 @@
 #include <fstream>
 #include <sstream>
 
-
 // TODO - support settings_pack
 TorrentManager::TorrentManager() {
 	greatest_id = 1;
@@ -285,25 +284,39 @@ void TorrentManager::save_fast_resume() {
 // http://www.libtorrent.org/reference-Core.html
 // http://www.libtorrent.org/manual-ref.html#fast-resume
 void TorrentManager::load_fast_resume(ConfigManager &config) {
-	std::string filename = "state/fastresume/fd5fdf21aef4505451861da97aa39000ed852988.fastresume";
-
-	// TODO - Treat errors opening file	
-	std::ifstream ifs(filename, std::ios_base::binary);
-	ifs.unsetf(std::ios_base::skipws);
-	std::istream_iterator<char> start(ifs), end;
-	std::vector<char> buffer(start, end);
-	char const *buf = buffer.data();	
-	
-	lt::bdecode_node node;
-	lt::error_code ec;
-	int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
-	if(ec) {
-		LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
+	fs::path fastresume_path;
+	try {
+		fastresume_path = fs::path(config.get_config<std::string>("directory.fastresume_path"));
+	}
+	catch(const config_key_error &e) {
+		LOG_ERROR << "Could not get config: " << e.what();
 		return;
 	}
-	lt::add_torrent_params atp;
-	atp.name = node.dict_find_string_value("name");
-	std::cout << "OiBR " << node.dict_find_string_value("file-format"); 
+	std::vector <fs::path> fastresume_files; 
+	if(!get_files_in_folder(fastresume_path, ".fastresume", fastresume_files)) {
+		LOG_ERROR << "Problem with fastresume directory " << fastresume_path.string() << ". Is this directory valid?";
+	}
 
-	//session.async_add_torrent(atp);
+	for(fs::path file : fastresume_files) {
+		// TODO - Treat errors opening file	
+		std::ifstream ifs(file.c_str(), std::ios_base::binary);
+		ifs.unsetf(std::ios_base::skipws);
+		std::istream_iterator<char> start(ifs), end;
+		std::vector<char> buffer(start, end);
+		char const *buf = buffer.data();	
+		
+		lt::bdecode_node node;
+		lt::error_code ec;
+		int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
+		if(ec) {
+			LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
+			return;
+		}
+		lt::add_torrent_params atp;
+		atp.name = node.dict_find_string_value("name");
+		std::cout << "OiBR " << node.dict_find_string_value("file-format"); 
+	
+		session.async_add_torrent(atp);
+	}
+
 }
