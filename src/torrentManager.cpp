@@ -5,6 +5,7 @@
 #include "plog/Log.h"
 #include <fstream>
 #include <sstream>
+#include <typeinfo>
 
 // TODO - support settings_pack
 TorrentManager::TorrentManager() {
@@ -277,6 +278,63 @@ void TorrentManager::save_fast_resume() {
 	}
 }
 
+/* TODO - FINISH PORTING lt::read_resume_data() 
+lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& rd, lt::error_code& ec) {
+	lt::add_torrent_params ret;
+
+		if (lt::bdecode_node const alloc = rd.dict_find_string("allocation"))
+		{
+			ret.storage_mode = (alloc.string_value() == "allocate"
+				|| alloc.string_value() == "full")
+				? lt::storage_mode_allocate : lt::storage_mode_sparse;
+		}
+
+		if (rd.dict_find_string_value("file-format")
+			!= "libtorrent resume file")
+		{
+			ec = lt::errors::invalid_file_tag;
+			return ret;
+		}
+
+
+		auto info_hash = rd.dict_find_string_value("info-hash");
+		if (info_hash.size() != 20)
+		{
+			ec = lt::errors::missing_info_hash;
+			return ret;
+		}
+
+		// TODO - not working ??
+		//ret.name = rd.dict_find_string_value("name").to_string();
+
+		ret.info_hash.assign(info_hash.data());
+
+		lt::bdecode_node const info = rd.dict_find_dict("info");
+		if (info)
+		{
+			// verify the info-hash of the metadata stored in the resume file matches
+			// the torrent we're loading
+			lt::sha1_hash const resume_ih = lt::hasher(info.data_section()).final();
+
+			// if url is set, the info_hash is not actually the info-hash of the
+			// torrent, but the hash of the URL, until we have the full torrent
+			// only require the info-hash to match if we actually passed in one
+			if (resume_ih == ret.info_hash)
+			{
+				ret.ti = boost::make_shared<lt::torrent_info>(resume_ih);
+
+				lt::error_code err;
+				if (!ret.ti->parse_info_section(info, err))
+				{
+					ec = err;
+				}
+			}
+		}
+
+
+	return ret;
+} */
+
 // TODO - read http://libtorrent.org/manual-ref.html#fast-resume specially the info field.
 // line 65 - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/src/read_resume_data.cpp
 // line 130 - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/test/test_read_resume.cpp
@@ -299,11 +357,12 @@ void TorrentManager::load_fast_resume(ConfigManager &config) {
 
 	for(fs::path file : fastresume_files) {
 		// TODO - Treat errors opening file	
-		std::ifstream ifs(file.c_str(), std::ios_base::binary);
+		std::ifstream ifs;
 		ifs.unsetf(std::ios_base::skipws);
+		ifs.open(file.c_str(), std::ios_base::binary);
 		std::istream_iterator<char> start(ifs), end;
 		std::vector<char> buffer(start, end);
-		char const *buf = buffer.data();	
+		char const *buf = buffer.data();
 		
 		lt::bdecode_node node;
 		lt::error_code ec;
@@ -314,8 +373,11 @@ void TorrentManager::load_fast_resume(ConfigManager &config) {
 		}
 		lt::add_torrent_params atp;
 		atp.name = node.dict_find_string_value("name");
-		std::cout << "OiBR " << node.dict_find_string_value("file-format"); 
-	
+		std::stringstream ss;
+	       	ss << typeid(node.dict_find("name").string_value()).name(); 
+		LOG_ERROR << node.dict_find("save_path").string_value();
+		LOG_ERROR << ss.str();
+
 		session.async_add_torrent(atp);
 	}
 

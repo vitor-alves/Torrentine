@@ -7,6 +7,7 @@
 #include <libtorrent/lazy_entry.hpp>
 #include <libtorrent/peer_info.hpp>
 #include "libtorrent/session_handle.hpp"
+#include "libtorrent/hasher.hpp"
 #include <boost/filesystem.hpp>
 #include "torrent.h"
 #include "config.h"
@@ -23,7 +24,7 @@ private:
 	std::vector<std::shared_ptr<Torrent>> torrents;
 	unsigned long int greatest_id;
 	unsigned long int outstanding_resume_data;
-
+	lt::add_torrent_params read_resume_data(lt::bdecode_node const& rd, lt::error_code& ec);
 public:
 	TorrentManager();
 	~TorrentManager();
