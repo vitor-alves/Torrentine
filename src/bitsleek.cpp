@@ -46,7 +46,7 @@ int main(int argc, char const* argv[])
 	TorrentManager torrent_manager;
 	torrent_manager.load_session_state(config);
 	torrent_manager.load_fast_resume(config);
-	add_test_torrents(torrent_manager, config);
+	//add_test_torrents(torrent_manager, config);
 	
 
 	RestAPI api(config, torrent_manager);

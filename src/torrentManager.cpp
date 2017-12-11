@@ -278,7 +278,6 @@ void TorrentManager::save_fast_resume() {
 	}
 }
 
-/* TODO - FINISH PORTING lt::read_resume_data() 
 lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& rd, lt::error_code& ec) {
 	lt::add_torrent_params ret;
 
@@ -309,7 +308,7 @@ lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& 
 
 		ret.info_hash.assign(info_hash.data());
 
-		lt::bdecode_node const info = rd.dict_find_dict("info");
+	/*	lt::bdecode_node const info = rd.dict_find_dict("info");
 		if (info)
 		{
 			// verify the info-hash of the metadata stored in the resume file matches
@@ -329,11 +328,11 @@ lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& 
 					ec = err;
 				}
 			}
-		}
+		} */
 
 
 	return ret;
-} */
+}
 
 // TODO - read http://libtorrent.org/manual-ref.html#fast-resume specially the info field.
 // line 65 - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/src/read_resume_data.cpp
@@ -342,6 +341,7 @@ lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& 
 // http://www.libtorrent.org/reference-Core.html
 // http://www.libtorrent.org/manual-ref.html#fast-resume
 void TorrentManager::load_fast_resume(ConfigManager &config) {
+
 	fs::path fastresume_path;
 	try {
 		fastresume_path = fs::path(config.get_config<std::string>("directory.fastresume_path"));
@@ -350,35 +350,46 @@ void TorrentManager::load_fast_resume(ConfigManager &config) {
 		LOG_ERROR << "Could not get config: " << e.what();
 		return;
 	}
-	std::vector <fs::path> fastresume_files; 
-	if(!get_files_in_folder(fastresume_path, ".fastresume", fastresume_files)) {
+	std::vector <fs::path> all_fastresume_files; 
+	if(!get_files_in_folder(fastresume_path, ".fastresume", all_fastresume_files)) {
 		LOG_ERROR << "Problem with fastresume directory " << fastresume_path.string() << ". Is this directory valid?";
 	}
 
-	for(fs::path file : fastresume_files) {
+	for(fs::path fastresume_file : all_fastresume_files) {
+		std::vector<char> fastresume_buffer;
+		std::vector<char> torrent_buffer;
+
+		{
 		// TODO - Treat errors opening file	
 		std::ifstream ifs;
 		ifs.unsetf(std::ios_base::skipws);
-		ifs.open(file.c_str(), std::ios_base::binary);
+		ifs.open(fastresume_file.c_str(), std::ios_base::binary);
 		std::istream_iterator<char> start(ifs), end;
-		std::vector<char> buffer(start, end);
-		char const *buf = buffer.data();
-		
+		fastresume_buffer = std::vector<char>(start, end);
+		}
+
+		{
+		fs::path torrent_file = "/mnt/DATA/Codacao/bitsleek/state/torrents/" + fastresume_file.stem().string() + ".torrent";
+		file_to_buffer(torrent_buffer, torrent_file.string());
+		}
+
+		std::cout << torrent_buffer.data() << std::endl;
 		lt::bdecode_node node;
+		char const *torrent_buf = torrent_buffer.data();	
 		lt::error_code ec;
-		int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
+		int ret =  lt::bdecode(torrent_buf, torrent_buf+torrent_buffer.size(), node, ec);
 		if(ec) {
 			LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
-			return;
-		}
+		}	
 		lt::add_torrent_params atp;
-		atp.name = node.dict_find_string_value("name");
-		std::stringstream ss;
-	       	ss << typeid(node.dict_find("name").string_value()).name(); 
-		LOG_ERROR << node.dict_find("save_path").string_value();
-		LOG_ERROR << ss.str();
-
+		lt::torrent_info info(node);	
+		boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
+		atp.ti = t_info;
+		atp.save_path = "/mnt/DATA/Codacao/bitsleek/temp/downloads"; // TODO - probably need to get
+									     // this and other info from the fastresume bencode_node...
+		atp.resume_data = fastresume_buffer;
 		session.async_add_torrent(atp);
-	}
 
+		//LOG_INFO << "Torrent with filename " << filename << " marked for asynchronous addition";
+	}
 }
