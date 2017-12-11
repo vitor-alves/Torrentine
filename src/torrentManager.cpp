@@ -335,11 +335,15 @@ lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& 
 }
 
 // TODO - read http://libtorrent.org/manual-ref.html#fast-resume specially the info field.
+// line 89 - https://github.com/arvidn/libtorrent/blob/a6c85496b59114b95b2a1c11659bca600da6db0e/examples/bt-get2.cpp
 // line 65 - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/src/read_resume_data.cpp
 // line 130 - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/test/test_read_resume.cpp
 // line 174 - https://github.com/arvidn/libtorrent/blob/7730eea4011b75e700cadc385cdde52cc9f8a2ad/test/test_resume.cpp
 // http://www.libtorrent.org/reference-Core.html
 // http://www.libtorrent.org/manual-ref.html#fast-resume
+// INFO: using add_torrent_params::resume_data is/will be deprecated by libtorrent. The recommended way to 
+// load fastresume data is now to use read_resume_data(). This is currently (2017-12-11) only available in master branch, 
+// but maybe it will be available in future releases. Remember that. More info here: https://github.com/arvidn/libtorrent/pull/1776
 void TorrentManager::load_fast_resume(ConfigManager &config) {
 
 	fs::path fastresume_path;
