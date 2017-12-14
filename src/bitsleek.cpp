@@ -42,7 +42,7 @@ int main(int argc, char const* argv[])
 
 	initialize_log(config);
 	
-	// TODO - torrentManager should have a referente to config in its constructor and I should remove all config from method calls	
+	// TODO - torrentManager should have a reference to config in its constructor and I should remove all config from method calls	
 	TorrentManager torrent_manager;
 	torrent_manager.load_session_state(config);
 	torrent_manager.load_fast_resume(config);
@@ -131,6 +131,6 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 		return;
 	}
 	bool success_t1 = torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/sample_torrents/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
-	bool success_t2 = torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
+	//bool success_t2 = torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
 	LOG_DEBUG << "Added test torrents";
 }
