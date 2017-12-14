@@ -1,3 +1,8 @@
+[directory]
+	download_path = "/mnt/DATA/Codacao/bitsleek/temp/downloads/"
+	fastresume_path = "/mnt/DATA/Codacao/bitsleek/state/fastresume/"
+	save_session_path = "/mnt/DATA/Codacao/bitsleek/state/session.state"
+	torrent_file_path = "/mnt/DATA/Codacao/bitsleek/state/torrents/"
 [log]
 	max_size = 5242880
 	file_path = "/mnt/DATA/Codacao/bitsleek/log/bitsleek-log.txt"
@@ -6,8 +11,3 @@
 [api]
 	port = 8040
 	address = "0.0.0.0"
-[directory]
-	download_path = "/mnt/DATA/Codacao/bitsleek/temp/downloads/"
-	fastresume_path = "/mnt/DATA/Codacao/bitsleek/state/fastresume/"
-	save_session_path = "/mnt/DATA/Codacao/bitsleek/state/session.state"
-	torrent_file_path = "/mnt/DATA/Codacao/bitsleek/state/torrents/"

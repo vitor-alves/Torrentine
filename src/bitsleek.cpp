@@ -57,6 +57,7 @@ int main(int argc, char const* argv[])
 		torrent_manager.update_torrent_console_view();
 		torrent_manager.check_alerts();
 		torrent_manager.wait_for_alert(lt::milliseconds(1000));	
+		// TODO - save resume_data every few seconds or minutes. Example here: https://github.com/arvidn/libtorrent/blob/62141036192954157469324cb2411e728c3f0851/examples/bt-get2.cpp
 	}
 	
 	torrent_manager.save_fast_resume();

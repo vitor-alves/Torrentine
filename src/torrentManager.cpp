@@ -356,16 +356,16 @@ void TorrentManager::load_fast_resume(ConfigManager &config) {
 	}
 }
 
-// NOTE: (2017-12-14) This is a forked function from libtorrent master branch. This function is not in official releases yet, but I am using it
-// here with some adaptations. When lt::read_resume_data() is finally on official releases use it instead and delete this.
-// There will also be no more need to add resume_data buffer to atp.resume_data after calling this function. 
-// I think (?) there will also be no need to set atp.ti, therefore dropping the need to maintain .torrent files in state folder MAYBE 
-// look at read_resume_data() - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/src/read_resume_data.cpp
+/* NOTE: (2017-12-14) This is a forked function from libtorrent master branch. This function is not in official releases yet, but I am using it
+ here with some adaptations. When lt::read_resume_data() is finally on official releases use it instead and delete this.
+ There will also be no more need to add resume_data buffer to atp.resume_data after calling this function. 
+ I think (?) there will also be no need to set atp.ti, therefore dropping the need to maintain .torrent files in state folder MAYBE 
+ look at read_resume_data() - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/src/read_resume_data.cpp
+ Example - old style using atp::resume_data: https://github.com/arvidn/libtorrent/blob/62141036192954157469324cb2411e728c3f0851/examples/bt-get2.cpp
+ Example - new style using lt::read_resume_data(): https://github.com/arvidn/libtorrent/blob/9e0a3aead1356a963f758ee95a4671d32f4617a7/examples/bt-get2.cpp
+*/
 lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& rd, lt::error_code& ec)
 {
-	
-	// TODO - FINISH IMPORTING THIS FUNCTION FROM LIBTORRENT!!! 
-	
 	lt::add_torrent_params ret;
 	ret.save_path = rd.dict_find_string_value("save_path");
 
