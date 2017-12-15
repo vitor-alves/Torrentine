@@ -238,7 +238,7 @@ void TorrentManager::save_fastresume() {
 			continue;
 		if(!s.need_save_resume)
 			continue;
-		h.save_resume_data();
+		h.save_resume_data(lt::torrent_handle::save_info_dict );
 		outstanding_resume_data++;
 	}
 
@@ -288,15 +288,6 @@ void TorrentManager::load_fastresume(ConfigManager &config) {
 		return;
 	}
 
-	fs::path torrent_file_path;
-	try {
-		torrent_file_path = fs::path(config.get_config<std::string>("directory.torrent_file_path"));
-	}
-	catch(const config_key_error &e) {
-		LOG_ERROR << "Could not get config: " << e.what();
-		return;
-	}
-
 	std::vector <fs::path> all_fastresume_files; 
 	if(!get_files_in_folder(fastresume_path, ".fastresume", all_fastresume_files)) {
 		LOG_ERROR << "Problem with fastresume directory " << fastresume_path.string() << ". Is this directory valid?";
@@ -305,7 +296,6 @@ void TorrentManager::load_fastresume(ConfigManager &config) {
 
 	for(fs::path fastresume_file : all_fastresume_files) {
 		std::vector<char> fastresume_buffer;
-		std::vector<char> torrent_buffer;
 
 		{
 			std::ifstream ifs;
@@ -320,38 +310,18 @@ void TorrentManager::load_fastresume(ConfigManager &config) {
 				continue;
 			}
 		}
-		
-		{
-			fs::path torrent_file = torrent_file_path.string() + fastresume_file.stem().string() + ".torrent";
-			if(!file_to_buffer(torrent_buffer, torrent_file.string())) {
-				LOG_ERROR << "Could not open torrent file: " << torrent_file.string();	
-				continue;
-			}
-		}
 
 	       	lt::bdecode_node fastresume_node;	
 		lt::error_code ec;
 		char const *fastresume_buf = fastresume_buffer.data();
 		int ret = lt::bdecode(fastresume_buf, fastresume_buf+fastresume_buffer.size(), fastresume_node, ec); 
 		if(ec) {
-			LOG_ERROR << "Problem occured while decoding fileresume buffer: " << ec.message();
-			continue;
-		}
-
-		lt::bdecode_node torrent_node;
-		ec.clear();
-		char const *torrent_buf = torrent_buffer.data();	
-		ret =  lt::bdecode(torrent_buf, torrent_buf+torrent_buffer.size(), torrent_node, ec);
-		if(ec) {
-			LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
+			LOG_ERROR << "Problem occured while decoding fastresume buffer: " << ec.message();
 			continue;
 		}
 
 		ec.clear();
 		lt::add_torrent_params atp = this->read_resume_data(fastresume_node, ec);
-		lt::torrent_info info(torrent_node);
-		boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
-		atp.ti = t_info;
 		/* NOTE: using lt::add_torrent_params::resume_data is/will (???) be deprecated by libtorrent. The recommended way to 
 		 load fastresume data is to use lt::read_resume_data(). This is currently (2017-12-11) only available in master branch, 
 		 but maybe it will be available in future releases. Remember that. A few changes will be needed here.
