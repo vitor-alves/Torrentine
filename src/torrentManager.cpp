@@ -225,7 +225,7 @@ bool TorrentManager::save_session_state(ConfigManager &config) {
 
 // TODO - incomplete - read documentation on libtorrent website! Read the notes! Very informative, specially about save resume 
 // when a torrent goes to paused state, completed, etc. THere is also a note talking about full allocation and fast resume.
-void TorrentManager::save_fast_resume() {
+void TorrentManager::save_fastresume() {
 	// Pause session so fast resume data is valid
 	session.pause(); // TODO - pause the session only when we are shutting down. In intermittent fast resume data save (every few minutes) 
 			// There is not need to pause the session.
@@ -278,11 +278,19 @@ void TorrentManager::save_fast_resume() {
 	}
 }
 
-// TODO - improve logs and error handling where applicable
-void TorrentManager::load_fast_resume(ConfigManager &config) {
+void TorrentManager::load_fastresume(ConfigManager &config) {
 	fs::path fastresume_path;
 	try {
 		fastresume_path = fs::path(config.get_config<std::string>("directory.fastresume_path"));
+	}
+	catch(const config_key_error &e) {
+		LOG_ERROR << "Could not get config: " << e.what();
+		return;
+	}
+
+	fs::path torrent_file_path;
+	try {
+		torrent_file_path = fs::path(config.get_config<std::string>("directory.torrent_file_path"));
 	}
 	catch(const config_key_error &e) {
 		LOG_ERROR << "Could not get config: " << e.what();
@@ -314,25 +322,25 @@ void TorrentManager::load_fast_resume(ConfigManager &config) {
 		}
 		
 		{
-			fs::path torrent_file = "/mnt/DATA/Codacao/bitsleek/state/torrents/" + fastresume_file.stem().string() + ".torrent";
+			fs::path torrent_file = torrent_file_path.string() + fastresume_file.stem().string() + ".torrent";
 			if(!file_to_buffer(torrent_buffer, torrent_file.string())) {
 				LOG_ERROR << "Could not open torrent file: " << torrent_file.string();	
 				continue;
 			}
 		}
 
-		char const *fastresume_buf = fastresume_buffer.data();
 	       	lt::bdecode_node fastresume_node;	
 		lt::error_code ec;
+		char const *fastresume_buf = fastresume_buffer.data();
 		int ret = lt::bdecode(fastresume_buf, fastresume_buf+fastresume_buffer.size(), fastresume_node, ec); 
 		if(ec) {
 			LOG_ERROR << "Problem occured while decoding fileresume buffer: " << ec.message();
 			continue;
 		}
 
-		char const *torrent_buf = torrent_buffer.data();	
 		lt::bdecode_node torrent_node;
 		ec.clear();
+		char const *torrent_buf = torrent_buffer.data();	
 		ret =  lt::bdecode(torrent_buf, torrent_buf+torrent_buffer.size(), torrent_node, ec);
 		if(ec) {
 			LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
@@ -341,14 +349,14 @@ void TorrentManager::load_fast_resume(ConfigManager &config) {
 
 		ec.clear();
 		lt::add_torrent_params atp = this->read_resume_data(fastresume_node, ec);
-		// NOTE: using lt::add_torrent_params::resume_data is/will (???) be deprecated by libtorrent. The recommended way to 
-		// load fastresume data is to use lt::read_resume_data(). This is currently (2017-12-11) only available in master branch, 
-		// but maybe it will be available in future releases. Remember that. A few changes will be needed here.
-		// More info here: https://github.com/arvidn/libtorrent/pull/1776
-		atp.resume_data = fastresume_buffer;
-		lt::torrent_info info(torrent_node);	
+		lt::torrent_info info(torrent_node);
 		boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
 		atp.ti = t_info;
+		/* NOTE: using lt::add_torrent_params::resume_data is/will (???) be deprecated by libtorrent. The recommended way to 
+		 load fastresume data is to use lt::read_resume_data(). This is currently (2017-12-11) only available in master branch, 
+		 but maybe it will be available in future releases. Remember that. A few changes will be needed here.
+		 More info here: https://github.com/arvidn/libtorrent/pull/1776 */
+		atp.resume_data = fastresume_buffer;
 		
 		session.async_add_torrent(atp);
 
@@ -359,11 +367,10 @@ void TorrentManager::load_fast_resume(ConfigManager &config) {
 /* NOTE: (2017-12-14) This is a forked function from libtorrent master branch. This function is not in official releases yet, but I am using it
  here with some adaptations. When lt::read_resume_data() is finally on official releases use it instead and delete this.
  There will also be no more need to add resume_data buffer to atp.resume_data after calling this function. 
- I think (?) there will also be no need to set atp.ti, therefore dropping the need to maintain .torrent files in state folder MAYBE 
+ I think (?) there will also be no need to set atp.ti, therefore MAYBE dropping the need to maintain .torrent files in state folder 
  look at read_resume_data() - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/src/read_resume_data.cpp
  Example - old style using atp::resume_data: https://github.com/arvidn/libtorrent/blob/62141036192954157469324cb2411e728c3f0851/examples/bt-get2.cpp
- Example - new style using lt::read_resume_data(): https://github.com/arvidn/libtorrent/blob/9e0a3aead1356a963f758ee95a4671d32f4617a7/examples/bt-get2.cpp
-*/
+ Example - new style using lt::read_resume_data(): https://github.com/arvidn/libtorrent/blob/9e0a3aead1356a963f758ee95a4671d32f4617a7/examples/bt-get2.cpp */
 lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& rd, lt::error_code& ec)
 {
 	lt::add_torrent_params ret;

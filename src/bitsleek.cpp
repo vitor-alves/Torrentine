@@ -45,7 +45,7 @@ int main(int argc, char const* argv[])
 	// TODO - torrentManager should have a reference to config in its constructor and I should remove all config from method calls	
 	TorrentManager torrent_manager;
 	torrent_manager.load_session_state(config);
-	torrent_manager.load_fast_resume(config);
+	torrent_manager.load_fastresume(config);
 	//add_test_torrents(torrent_manager, config);
 	
 
@@ -60,7 +60,7 @@ int main(int argc, char const* argv[])
 		// TODO - save resume_data every few seconds or minutes. Example here: https://github.com/arvidn/libtorrent/blob/62141036192954157469324cb2411e728c3f0851/examples/bt-get2.cpp
 	}
 	
-	torrent_manager.save_fast_resume();
+	torrent_manager.save_fastresume();
 	torrent_manager.save_session_state(config);
 
 	config.save_config(config_file);

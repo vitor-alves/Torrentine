@@ -38,8 +38,8 @@ public:
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);
 	bool save_session_state(ConfigManager &config);
 	bool load_session_state(ConfigManager &config);
-	void save_fast_resume();
-	void load_fast_resume(ConfigManager &config);
+	void save_fastresume();
+	void load_fastresume(ConfigManager &config);
 };
 
 #endif
