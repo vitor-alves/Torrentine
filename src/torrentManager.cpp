@@ -223,12 +223,17 @@ bool TorrentManager::save_session_state(ConfigManager &config) {
 	}
 }
 
-// TODO - incomplete - read documentation on libtorrent website! Read the notes! Very informative, specially about save resume 
-// when a torrent goes to paused state, completed, etc. THere is also a note talking about full allocation and fast resume.
-void TorrentManager::save_fastresume() {
-	// Pause session so fast resume data is valid
-	session.pause(); // TODO - pause the session only when we are shutting down. In intermittent fast resume data save (every few minutes) 
-			// There is not need to pause the session.
+void TorrentManager::save_fastresume(ConfigManager &config, int resume_flags) {
+	fs::path fastresume_path;
+	
+	try {
+		fastresume_path = fs::path(config.get_config<std::string>("directory.fastresume_path"));
+	}
+	catch(const config_key_error &e) {
+		LOG_ERROR << "Could not get config: " << e.what();
+		return;
+	}
+	
 	for(std::shared_ptr<Torrent> torrent : torrents) {
 		lt::torrent_handle h = torrent->get_handle();
 		if(!h.is_valid())
@@ -238,7 +243,7 @@ void TorrentManager::save_fastresume() {
 			continue;
 		if(!s.need_save_resume)
 			continue;
-		h.save_resume_data(lt::torrent_handle::save_info_dict );
+		h.save_resume_data(resume_flags);
 		outstanding_resume_data++;
 	}
 
@@ -268,11 +273,12 @@ void TorrentManager::save_fastresume() {
 			lt::torrent_status ts = h.status(lt::torrent_handle::query_name);
 			std::stringstream ss_name;
 			ss_name << ts.info_hash;
-			std::string file = "state/fastresume/"+ ss_name.str() +".fastresume";
-			std::ofstream out(file.c_str(), std::ios_base::binary);
+			fs::path out_file = fastresume_path.string()+ ss_name.str() +".fastresume";
+			std::ofstream out(out_file.c_str(), std::ios_base::binary);
 			out.unsetf(std::ios_base::skipws);
 			lt::bencode(std::ostream_iterator<char>(out), *rd->resume_data);
 			outstanding_resume_data--;
+			LOG_DEBUG << "Saved fastresume: " << out_file;
 		}
 
 	}
@@ -347,4 +353,8 @@ lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& 
 	ret.save_path = rd.dict_find_string_value("save_path");
 
 	return ret;
+}
+
+void TorrentManager::pause_session() {
+	session.pause();
 }

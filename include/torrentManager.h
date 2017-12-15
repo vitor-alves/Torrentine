@@ -38,8 +38,9 @@ public:
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);
 	bool save_session_state(ConfigManager &config);
 	bool load_session_state(ConfigManager &config);
-	void save_fastresume();
+	void save_fastresume(ConfigManager &config, int resume_flags = lt::torrent_handle::save_info_dict);
 	void load_fastresume(ConfigManager &config);
+	void pause_session();
 };
 
 #endif

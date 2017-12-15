@@ -52,15 +52,26 @@ int main(int argc, char const* argv[])
 	RestAPI api(config, torrent_manager);
 	api.start_server();
 
+	std::chrono::steady_clock::time_point last_save_fastresume = std::chrono::steady_clock::now();
 	signal(SIGINT, shutdown_program);
 	while(!shutdown_flag) {
 		torrent_manager.update_torrent_console_view();
 		torrent_manager.check_alerts();
 		torrent_manager.wait_for_alert(lt::milliseconds(1000));	
-		// TODO - save resume_data every few seconds or minutes. Example here: https://github.com/arvidn/libtorrent/blob/62141036192954157469324cb2411e728c3f0851/examples/bt-get2.cpp
+		// TODO - Ideally saving fastresume periodically should be done outside the main thread because this may take some time, but there
+		// are some special cases that need to be addressed before putting this in another thread. Libtorrent says:
+		// Make sure to not remove_torrent() before you receive the save_resume_data_alert though
+		if(std::chrono::steady_clock::now() - last_save_fastresume > std::chrono::seconds(5)) {
+			torrent_manager.save_fastresume(config, lt::torrent_handle::save_resume_flags_t::save_info_dict |
+							lt::torrent_handle::save_resume_flags_t::only_if_modified);
+			last_save_fastresume = std::chrono::steady_clock::now();
+		} 
 	}
-	
-	torrent_manager.save_fastresume();
+
+	torrent_manager.pause_session(); // Session is paused so fastresume data will definitely be valid once it finishes
+	torrent_manager.save_fastresume(config, lt::torrent_handle::save_resume_flags_t::flush_disk_cache  |
+					lt::torrent_handle::save_resume_flags_t::save_info_dict    |
+					lt::torrent_handle::save_resume_flags_t::only_if_modified);
 	torrent_manager.save_session_state(config);
 
 	config.save_config(config_file);
