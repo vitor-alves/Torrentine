@@ -10,9 +10,6 @@
 #include <libtorrent/extensions/ut_pex.hpp>
 #include <libtorrent/extensions/smart_ban.hpp>
 
-#include <bitset>
-
-// TODO - support settings_pack
 TorrentManager::TorrentManager() {
 	greatest_id = 1;
 	outstanding_resume_data = 0;

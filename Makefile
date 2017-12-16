@@ -12,4 +12,7 @@ all:
 script_test:
 	g++ script.cpp -llua -o script_test
 
-.PHONY: all script_test
+test:
+	g++ -std=c++14 test/test.cpp -I ./include -I ./third_party -o ./bin/test
+
+.PHONY: all test script_test
