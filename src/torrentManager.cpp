@@ -205,7 +205,7 @@ bool TorrentManager::save_session_state(ConfigManager &config) {
 	lt::entry e;
 	session.save_state(e);
 	std::filebuf fb;
-	fs::path save_path = "./";
+	fs::path save_path;
 	try {
 		save_path = fs::path(config.get_config<std::string>("directory.save_session_path"));
 	}
@@ -365,4 +365,15 @@ lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& 
 
 void TorrentManager::pause_session() {
 	session.pause();
+}
+
+
+bool TorrentManager::load_session_settings(ConfigManager &config) {
+	
+	// TODO - use others settings too. I will probably need to store settings in config file.	
+	lt::settings_pack pack;
+	pack.set_str(lt::settings_pack::user_agent, "Bitsleek/0.0.0"); // TODO - use global variable bitsleek_version
+	
+	session.apply_settings(pack);
+
 }

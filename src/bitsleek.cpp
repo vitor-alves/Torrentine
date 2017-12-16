@@ -44,6 +44,7 @@ int main(int argc, char const* argv[])
 	
 	// TODO - torrentManager should have a reference to config in its constructor and I should remove all config from method calls	
 	TorrentManager torrent_manager;
+	torrent_manager.load_session_settings(config);
 	torrent_manager.load_session_state(config);
 	torrent_manager.load_fastresume(config);
 	add_test_torrents(torrent_manager, config);
@@ -70,7 +71,7 @@ int main(int argc, char const* argv[])
 
 	torrent_manager.pause_session(); // Session is paused so fastresume data will definitely be valid once it finishes
 	torrent_manager.save_fastresume(config, lt::torrent_handle::save_resume_flags_t::flush_disk_cache  |
-					lt::torrent_handle::save_resume_flags_t::save_info_dict    |
+					lt::torrent_handle::save_resume_flags_t::save_info_dict            |
 					lt::torrent_handle::save_resume_flags_t::only_if_modified);
 	torrent_manager.save_session_state(config);
 
