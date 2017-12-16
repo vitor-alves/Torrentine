@@ -63,10 +63,15 @@ void TorrentManager::update_torrent_console_view() {
 	std::cout << std::endl << std::endl;
 }
 
-void TorrentManager::check_alerts() {
+void TorrentManager::check_alerts(lt::alert *a) {
 	std::vector<lt::alert*> alerts;
-	session.pop_alerts(&alerts);
-	
+	if(a == NULL) {
+		session.pop_alerts(&alerts);
+	}
+	else {
+		alerts.push_back(a);		
+	}
+
 	// TODO - needs optimizations. Cant just log errors and stay cool like nothing happened.
 	// There are a lot more alert messages that need to be here	
 	for (lt::alert const *a : alerts) {
@@ -174,7 +179,7 @@ lt::alert const* TorrentManager::wait_for_alert(lt::time_duration max_wait) {
 }
 
 bool TorrentManager::load_session_state(ConfigManager &config) {
-	fs::path load_path = "./";
+	fs::path load_path;
 	try {
 		load_path = fs::path(config.get_config<std::string>("directory.save_state_path"));
 	}
@@ -258,17 +263,18 @@ void TorrentManager::save_fastresume(ConfigManager &config, int resume_flags) {
 
 		for(lt::alert *a : alerts) {
 			if(lt::alert_cast<lt::save_resume_data_failed_alert>(a)) {
-				// TODO - do something about this
+				LOG_ERROR << "Save fastresume data failed: " << a->message();
 				outstanding_resume_data--;
 				continue;
 			}
 		
 			lt::save_resume_data_alert const *rd = lt::alert_cast<lt::save_resume_data_alert>(a);
 			if(rd == 0) {
-				// TODO - process alert in the main alert processing method. We cant ignore this alert.
+				check_alerts(a);
 				continue;
 			}
-	
+				
+			outstanding_resume_data--;
 			lt::torrent_handle h = rd->handle;
 			lt::torrent_status ts = h.status(lt::torrent_handle::query_name);
 			std::stringstream ss_name;
@@ -276,11 +282,14 @@ void TorrentManager::save_fastresume(ConfigManager &config, int resume_flags) {
 			fs::path out_file = fastresume_path.string()+ ss_name.str() +".fastresume";
 			std::ofstream out(out_file.c_str(), std::ios_base::binary);
 			out.unsetf(std::ios_base::skipws);
-			lt::bencode(std::ostream_iterator<char>(out), *rd->resume_data);
-			outstanding_resume_data--;
-			LOG_DEBUG << "Saved fastresume: " << out_file;
+			if(out.is_open()) {
+				lt::bencode(std::ostream_iterator<char>(out), *rd->resume_data);
+				LOG_DEBUG << "Saved fastresume: " << out_file;
+			}
+			else {
+				LOG_ERROR << "Could not save fastresume: " << out_file;
+			}
 		}
-
 	}
 }
 
@@ -343,7 +352,6 @@ void TorrentManager::load_fastresume(ConfigManager &config) {
 /* NOTE: (2017-12-14) This is a forked function from libtorrent master branch. This function is not in official releases yet, but I am using it
  here with some adaptations. When lt::read_resume_data() is finally on official releases use it instead and delete this.
  There will also be no more need to add resume_data buffer to atp.resume_data after calling this function. 
- I think (?) there will also be no need to set atp.ti, therefore MAYBE dropping the need to maintain .torrent files in state folder 
  look at read_resume_data() - https://github.com/arvidn/libtorrent/blob/6785046c2fefe6a997f6061e306d45c4f5058e56/src/read_resume_data.cpp
  Example - old style using atp::resume_data: https://github.com/arvidn/libtorrent/blob/62141036192954157469324cb2411e728c3f0851/examples/bt-get2.cpp
  Example - new style using lt::read_resume_data(): https://github.com/arvidn/libtorrent/blob/9e0a3aead1356a963f758ee95a4671d32f4617a7/examples/bt-get2.cpp */

@@ -61,7 +61,7 @@ int main(int argc, char const* argv[])
 		// TODO - Ideally saving fastresume periodically should be done outside the main thread because this may take some time, but there
 		// are some special cases that need to be addressed before putting this in another thread. Libtorrent says:
 		// Make sure to not remove_torrent() before you receive the save_resume_data_alert though
-		if(std::chrono::steady_clock::now() - last_save_fastresume > std::chrono::seconds(5)) {
+		if(std::chrono::steady_clock::now() - last_save_fastresume > std::chrono::seconds(60)) {
 			torrent_manager.save_fastresume(config, lt::torrent_handle::save_resume_flags_t::save_info_dict |
 							lt::torrent_handle::save_resume_flags_t::only_if_modified);
 			last_save_fastresume = std::chrono::steady_clock::now();
