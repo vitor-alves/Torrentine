@@ -41,7 +41,8 @@ public:
 	void save_fastresume(ConfigManager &config, int resume_flags = lt::torrent_handle::save_info_dict);
 	void load_fastresume(ConfigManager &config);
 	void pause_session();
-	bool load_session_settings(ConfigManager &config);
+	void load_session_settings(ConfigManager &config);
+	void load_session_extensions(ConfigManager &config);
 };
 
 #endif

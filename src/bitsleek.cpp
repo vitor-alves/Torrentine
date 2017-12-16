@@ -46,6 +46,7 @@ int main(int argc, char const* argv[])
 	TorrentManager torrent_manager;
 	torrent_manager.load_session_settings(config);
 	torrent_manager.load_session_state(config);
+	torrent_manager.load_session_extensions(config);
 	torrent_manager.load_fastresume(config);
 	add_test_torrents(torrent_manager, config);
 	
@@ -140,7 +141,7 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 		download_path = config.get_config<std::string>("directory.download_path");
 	}
 	catch(const config_key_error &e) {
-		LOG_ERROR << "Could not get config: " << e.what();
+		LOG_ERROR << "Test torrents were not added. Could not get config: " << e.what();
 		return;
 	}
 	bool success_t1 = torrent_manager.add_torrent_async("/mnt/DATA/Codacao/bitsleek/test/sample_torrents/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);

@@ -21,7 +21,7 @@ RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torre
 		server.config.address = config.get_config<std::string>("api.address");	
 	}
 	catch(config_key_error const &e) {
-		LOG_ERROR << "Could not get config: " << e.what();
+		LOG_ERROR << "Problem initializing RestAPI. Could not get config: " << e.what();
 	}
 
 	define_resources();
@@ -34,11 +34,9 @@ RestAPI::~RestAPI() {
 void RestAPI::start_server() {
 	server_thread = std::make_unique<std::thread>( [&]() { 
 				try {
-					// TODO - start() blocks until the server stops... Fix this.
-					// https://github.com/eidheim/Simple-Web-Server/issues/176
-					server.start();
-					LOG_INFO << "Web UI and REST API server have been started and are listening on "
+					LOG_INFO << "Web UI and REST API server will start listening on "
 				       	<< server.config.address << ":" << server.config.port;
+					server.start();
 				}
 				catch(std::exception const &e) {
 					LOG_ERROR << "Web server error: " << e.what() << ". Is port " <<

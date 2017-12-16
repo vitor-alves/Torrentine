@@ -6,6 +6,10 @@
 #include <fstream>
 #include <sstream>
 #include <typeinfo>
+#include <libtorrent/extensions/metadata_transfer.hpp>
+#include <libtorrent/extensions/ut_metadata.hpp>
+#include <libtorrent/extensions/ut_pex.hpp>
+#include <libtorrent/extensions/smart_ban.hpp>
 
 // TODO - support settings_pack
 TorrentManager::TorrentManager() {
@@ -181,7 +185,7 @@ lt::alert const* TorrentManager::wait_for_alert(lt::time_duration max_wait) {
 bool TorrentManager::load_session_state(ConfigManager &config) {
 	fs::path load_path;
 	try {
-		load_path = fs::path(config.get_config<std::string>("directory.save_state_path"));
+		load_path = fs::path(config.get_config<std::string>("directory.session_state_path"));
 	}
 	catch(config_key_error const &e) {
 		LOG_ERROR << "Session state was not loaded. Could not get config: " << e.what();
@@ -198,6 +202,7 @@ bool TorrentManager::load_session_state(ConfigManager &config) {
 	char const *buf = buffer.data();
 	lt::bdecode(buf, buf + buffer.size(), node, ec);
 	session.load_state(node);
+	LOG_DEBUG << "Session state loaded";
 	return true;
 }
 
@@ -207,7 +212,7 @@ bool TorrentManager::save_session_state(ConfigManager &config) {
 	std::filebuf fb;
 	fs::path save_path;
 	try {
-		save_path = fs::path(config.get_config<std::string>("directory.save_session_path"));
+		save_path = fs::path(config.get_config<std::string>("directory.session_state_path"));
 	}
 	catch(config_key_error const &e) {
 		LOG_ERROR << "Session state was not saved. Could not get config: " << e.what();
@@ -219,11 +224,11 @@ bool TorrentManager::save_session_state(ConfigManager &config) {
 		std::ostream os(&fb);
 		os << e;
 		fb.close();
-		LOG_INFO << "Session was saved at " << save_path.string();
+		LOG_INFO << "Session state was saved at " << save_path.string();
 		return true;
 	}
 	else {
-		LOG_ERROR << "Session was not saved. Could not open save session file at " << save_path.string();
+		LOG_ERROR << "Session state was not saved. Could not open save session state file at " << save_path.string();
 		return false;
 	}
 }
@@ -235,7 +240,7 @@ void TorrentManager::save_fastresume(ConfigManager &config, int resume_flags) {
 		fastresume_path = fs::path(config.get_config<std::string>("directory.fastresume_path"));
 	}
 	catch(const config_key_error &e) {
-		LOG_ERROR << "Could not get config: " << e.what();
+		LOG_ERROR << "Fastresume not saved. Could not get config: " << e.what();
 		return;
 	}
 	
@@ -299,7 +304,7 @@ void TorrentManager::load_fastresume(ConfigManager &config) {
 		fastresume_path = fs::path(config.get_config<std::string>("directory.fastresume_path"));
 	}
 	catch(const config_key_error &e) {
-		LOG_ERROR << "Could not get config: " << e.what();
+		LOG_ERROR << "Fastresume not loaded. Could not get config: " << e.what();
 		return;
 	}
 
@@ -368,12 +373,48 @@ void TorrentManager::pause_session() {
 }
 
 
-bool TorrentManager::load_session_settings(ConfigManager &config) {
+void TorrentManager::load_session_settings(ConfigManager &config) {
 	
 	// TODO - use others settings too. I will probably need to store settings in config file.	
 	lt::settings_pack pack;
-	pack.set_str(lt::settings_pack::user_agent, "Bitsleek/0.0.0"); // TODO - use global variable bitsleek_version
-	
+	pack.set_str(lt::settings_pack::user_agent, "Bitsleek 0.0.0"); // TODO - use global variable bitsleek_version
+		
 	session.apply_settings(pack);
+	LOG_DEBUG << "Loaded session settings";
+}
 
+void TorrentManager::load_session_extensions(ConfigManager &config) {
+	bool ut_metadata_plugin_enabled;
+	bool ut_pex_plugin_enabled;
+	bool smart_ban_plugin_enabled;
+	try {
+		(config.get_config<std::string>("libtorrent.extensions.ut_metadata_plugin") == "enabled") ?
+			ut_metadata_plugin_enabled = true : ut_metadata_plugin_enabled = false; 
+
+		(config.get_config<std::string>("libtorrent.extensions.ut_pex_plugin") == "enabled") ?
+			ut_pex_plugin_enabled = true : ut_pex_plugin_enabled = false; 
+	
+		(config.get_config<std::string>("libtorrent.extensions.smart_ban_plugin") == "enabled") ?
+			smart_ban_plugin_enabled = true : smart_ban_plugin_enabled = false; 
+	}
+	catch(const config_key_error &e) {
+		LOG_ERROR << "Libtorrent extensions were not loaded. Could not get config: " << e.what();
+		return;
+	}
+	
+	std::stringstream log_msg;
+	log_msg << "Loaded Libtorrent extensions: ";
+	if(ut_metadata_plugin_enabled) {
+		session.add_extension(&lt::create_ut_metadata_plugin);	
+		log_msg << "ut_metadata_plugin ";
+	}
+	if(ut_pex_plugin_enabled) {
+		session.add_extension(&lt::create_ut_pex_plugin);	
+		log_msg << " ut_pex_plugin ";
+	}
+	if(smart_ban_plugin_enabled) {
+		session.add_extension(&lt::create_smart_ban_plugin);	
+		log_msg << " smart_ban_plugin";
+	}
+	LOG_DEBUG << log_msg.str();
 }
