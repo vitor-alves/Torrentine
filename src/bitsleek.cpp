@@ -70,7 +70,7 @@ int main(int argc, char const* argv[])
 		} 
 	}
 
-	torrent_manager.pause_session(); // Session is paused so fastresume data will definitely be valid once it finishes
+	torrent_manager.pause_session(); // Session is paused so fastresume data will be valid once it finishes
 	torrent_manager.save_fastresume(config, lt::torrent_handle::save_resume_flags_t::flush_disk_cache  |
 					lt::torrent_handle::save_resume_flags_t::save_info_dict            |
 					lt::torrent_handle::save_resume_flags_t::only_if_modified);

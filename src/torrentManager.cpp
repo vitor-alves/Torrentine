@@ -6,10 +6,11 @@
 #include <fstream>
 #include <sstream>
 #include <typeinfo>
-#include <libtorrent/extensions/metadata_transfer.hpp>
 #include <libtorrent/extensions/ut_metadata.hpp>
 #include <libtorrent/extensions/ut_pex.hpp>
 #include <libtorrent/extensions/smart_ban.hpp>
+
+#include <bitset>
 
 // TODO - support settings_pack
 TorrentManager::TorrentManager() {
@@ -62,6 +63,7 @@ void TorrentManager::update_torrent_console_view() {
 		std::cout << "seeds: " << torrent->get_handle().status().num_seeds<< " / ";
 		std::cout << "peers: " << torrent->get_handle().status().num_peers << " / ";
 		std::cout << "paused: " << torrent->get_handle().status().paused << " / ";
+		std::cout << "queue_pos: " << torrent->get_handle().status().queue_position << " / ";
 		std::cout << std::endl;
 	}
 	std::cout << std::endl << std::endl;
@@ -260,8 +262,10 @@ void TorrentManager::save_fastresume(ConfigManager &config, int resume_flags) {
 	while(outstanding_resume_data > 0) {
 		lt::alert *a = session.wait_for_alert(std::chrono::seconds(10));
 
-		if(a==0)
+		if(a==0) {
+			LOG_DEBUG << "Wait for resume data alert timed out";
 			break;
+		}
 
 		std::vector<lt::alert*> alerts;
 		session.pop_alerts(&alerts);
@@ -378,7 +382,8 @@ void TorrentManager::load_session_settings(ConfigManager &config) {
 	// TODO - use others settings too. I will probably need to store settings in config file.	
 	lt::settings_pack pack;
 	pack.set_str(lt::settings_pack::user_agent, "Bitsleek 0.0.0"); // TODO - use global variable bitsleek_version
-		
+	pack.set_int(lt::settings_pack::active_downloads, 5); // TODO - put this in config.ini
+	
 	session.apply_settings(pack);
 	LOG_DEBUG << "Loaded session settings";
 }
