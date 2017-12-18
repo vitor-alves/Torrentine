@@ -13,6 +13,6 @@
 	fastresume_path = "/mnt/DATA/Codacao/bitsleek/state/fastresume/"
 [libtorrent]
 	[libtorrent.extensions]
-		smart_ban_plugin = "enabled"
 		ut_metadata_plugin = "enabled"
 		ut_pex_plugin = "enabled"
+		smart_ban_plugin = "enabled"

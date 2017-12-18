@@ -506,23 +506,37 @@ bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query
 // TODO - create logic.
 bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	sqlite3 *db;
-	
-	fs::path users_db_path = "state/database/chinook.db"; // TODO - get config
+	sqlite3_stmt *stmt;
 
-	int ret = sqlite3_open(users_db_path.string().c_str(), &db);
-	if(ret != SQLITE_OK) {
-		LOG_ERROR << "Could not open database " << users_db_path.string() << ". sqlite3 msg: " << sqlite3_errmsg(db); 
+	std::string sql = "select * from users"; 
+
+	fs::path users_db_path = "state/database/bitsleek.db"; // TODO - get config
+
+	if(sqlite3_open(users_db_path.string().c_str(), &db) != SQLITE_OK) {
+		LOG_ERROR << "Could not open database " << users_db_path.string() << ". SQLite3 msg: " << sqlite3_errmsg(db); 
 		sqlite3_close(db);
 		return false;
 	}
 
-	char *error_msg = 0;
-	ret = sqlite3_exec(db, "select * from artists", callback, 0, &error_msg);
-	if(ret != SQLITE_OK) {
-		LOG_ERROR << "SQL error: " << error_msg << ". sqlite3 code: " << ret;
-		sqlite3_free(error_msg);
+	if(sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+		LOG_ERROR << "Could not compile SQL: " << sql << ". SQLite3 msg: " << sqlite3_errmsg(db); 
+		sqlite3_close(db);
+		sqlite3_finalize(stmt);
+		return false;
 	}
 
+	int ret_code = 0;
+	bool found = false;
+	while((ret_code = sqlite3_step(stmt)) == SQLITE_ROW) {
+		LOG_ERROR << sqlite3_column_int(stmt, 0) << " " << sqlite3_column_text(stmt, 1); 
+		found = true;
+	}
+
+	if(ret_code != SQLITE_DONE) {
+		LOG_ERROR << "Problem while evaluating SQL: " << sql << ". SQLite3 msg: " << sqlite3_errmsg(db);
+	}
+
+	sqlite3_finalize(stmt);
 	sqlite3_close(db);
 	
 	return true;
