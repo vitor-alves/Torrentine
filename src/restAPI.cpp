@@ -12,6 +12,7 @@
 #include <typeinfo>
 #include <vector>
 #include <string>
+#include <sqlite3.h>
 
 RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torrent_manager(torrent_manager) {
 	try {
@@ -491,7 +492,38 @@ bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query
 	return false;
 }
 
+
+  static int callback(void *NotUsed, int argc, char **argv, char **azColName){
+    int i;
+    for(i=0; i<argc; i++){
+      printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
+  }
+  printf("\n");
+  return 0;
+}
+
+
 // TODO - create logic.
 bool RestAPI::is_authorization_valid(std::string authorization_base64) {
+	sqlite3 *db;
+	
+	fs::path users_db_path = "state/database/chinook.db"; // TODO - get config
+
+	int ret = sqlite3_open(users_db_path.string().c_str(), &db);
+	if(ret != SQLITE_OK) {
+		LOG_ERROR << "Could not open database " << users_db_path.string() << ". sqlite3 msg: " << sqlite3_errmsg(db); 
+		sqlite3_close(db);
+		return false;
+	}
+
+	char *error_msg = 0;
+	ret = sqlite3_exec(db, "select * from artists", callback, 0, &error_msg);
+	if(ret != SQLITE_OK) {
+		LOG_ERROR << "SQL error: " << error_msg << ". sqlite3 code: " << ret;
+		sqlite3_free(error_msg);
+	}
+
+	sqlite3_close(db);
+	
 	return true;
 }

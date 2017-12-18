@@ -3,7 +3,7 @@ OUT_PATH=./bin
 INCLUDE_PATH=./include
 THIRDPARTY_PATH=./third_party
 FILES = utility.cpp torrent.cpp config.cpp restAPI.cpp torrentManager.cpp bitsleek.cpp
-CFLAGS= -std=c++14 -pthread -lboost_filesystem -lboost_system -ltorrent-rasterbar -lboost_program_options
+CFLAGS= -std=c++14 -pthread -lboost_filesystem -lboost_system -ltorrent-rasterbar -lboost_program_options -lsqlite3
 CC = g++
 
 all:
