@@ -13,6 +13,7 @@
 #include <vector>
 #include <string>
 #include <sqlite3.h>
+#include "cpp-base64/base64.h"
 
 RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torrent_manager(torrent_manager) {
 	try {
@@ -502,24 +503,42 @@ bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query
   return 0;
 }
 
+/* TODO - improve this. It works for well formated strings, but I am not sure about what happens when 
+ * a incorrectly formated string is passed as parameter */
+std::string get_basic_auth_value(std::string authorization_base64) {
+	std::stringstream ss(authorization_base64);
+	std::string s;
+	char delim = ' ';
+
+	getline(ss, s, delim);
+	if(s != "Basic") {
+		return std::string("");
+	}
+
+	getline(ss, s, delim);
+	return base64_decode(s);
+}
+
 
 // TODO - create logic.
 bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	sqlite3 *db;
 	sqlite3_stmt *stmt;
 
+	std::string authorization = get_basic_auth_value(authorization_base64);
+
 	std::string sql = "select * from users"; 
 
 	fs::path users_db_path = "state/database/bitsleek.db"; // TODO - get config
 
 	if(sqlite3_open(users_db_path.string().c_str(), &db) != SQLITE_OK) {
-		LOG_ERROR << "Could not open database " << users_db_path.string() << ". SQLite3 msg: " << sqlite3_errmsg(db); 
+		LOG_ERROR << "Could not open database " << users_db_path.string() << ". SQLite3 error_msg: " << sqlite3_errmsg(db); 
 		sqlite3_close(db);
 		return false;
 	}
 
 	if(sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
-		LOG_ERROR << "Could not compile SQL: " << sql << ". SQLite3 msg: " << sqlite3_errmsg(db); 
+		LOG_ERROR << "Could not compile SQL: " << sql << ". SQLite3 error_msg: " << sqlite3_errmsg(db); 
 		sqlite3_close(db);
 		sqlite3_finalize(stmt);
 		return false;
@@ -533,7 +552,7 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	}
 
 	if(ret_code != SQLITE_DONE) {
-		LOG_ERROR << "Problem while evaluating SQL: " << sql << ". SQLite3 msg: " << sqlite3_errmsg(db);
+		LOG_ERROR << "Problem while evaluating SQL: " << sql << ". SQLite3 error_msg: " << sqlite3_errmsg(db);
 	}
 
 	sqlite3_finalize(stmt);
