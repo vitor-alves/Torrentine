@@ -68,3 +68,13 @@ bool get_files_in_folder(const fs::path root, const std::string extension, std::
 	}
 	return true;
 }
+
+std::vector<std::string> split_string(std::string const &s, char const delim) {
+	std::vector<std::string> splitted_strings;
+	std::stringstream ss(s);
+	std::string temp;
+	while(getline(ss, temp, delim)) {
+		splitted_strings.push_back(temp);
+	}
+	return splitted_strings;
+}

@@ -505,7 +505,7 @@ bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query
 
 /* TODO - improve this. It works for well formated strings, but I am not sure about what happens when 
  * a incorrectly formated string is passed as parameter */
-std::string get_basic_auth_value(std::string authorization_base64) {
+std::string RestAPI::decode_basic_auth(std::string authorization_base64) {
 	std::stringstream ss(authorization_base64);
 	std::string s;
 	char delim = ' ';
@@ -525,10 +525,18 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	sqlite3 *db;
 	sqlite3_stmt *stmt;
 
-	std::string authorization = get_basic_auth_value(authorization_base64);
+	std::string authorization = decode_basic_auth(authorization_base64);
+	std::vector<std::string> user_pass = split_string(authorization, ':');
+	if(user_pass.size() != 2) {
+		return false;
+	}
+	std::string username = user_pass.at(0);
+	std::string password = user_pass.at(1);
 
-	std::string sql = "select * from users"; 
-
+	// TODO - avoid sql injection
+	std::stringstream sql;
+	sql << "select id,username,password,salt from users where username = " << "'" << username << "'";
+	
 	fs::path users_db_path = "state/database/bitsleek.db"; // TODO - get config
 
 	if(sqlite3_open(users_db_path.string().c_str(), &db) != SQLITE_OK) {
@@ -537,8 +545,8 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 		return false;
 	}
 
-	if(sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL) != SQLITE_OK) {
-		LOG_ERROR << "Could not compile SQL: " << sql << ". SQLite3 error_msg: " << sqlite3_errmsg(db); 
+	if(sqlite3_prepare_v2(db, sql.str().c_str(), -1, &stmt, NULL) != SQLITE_OK) {
+		LOG_ERROR << "Could not compile SQL: " << sql.str() << ". SQLite3 error_msg: " << sqlite3_errmsg(db); 
 		sqlite3_close(db);
 		sqlite3_finalize(stmt);
 		return false;
@@ -546,17 +554,37 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 
 	int ret_code = 0;
 	bool found = false;
+	int id;
+	std::string username_db;
+	std::string password_db;
+	std::string salt_db;
 	while((ret_code = sqlite3_step(stmt)) == SQLITE_ROW) {
-		LOG_ERROR << sqlite3_column_int(stmt, 0) << " " << sqlite3_column_text(stmt, 1); 
+		id = sqlite3_column_int(stmt, 0);
+	       	username_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+		password_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+		salt_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
 		found = true;
 	}
 
+	if(!found) {
+		LOG_ERROR << "Authorization for user " << username << " denied." << " User not found in database.";
+		sqlite3_finalize(stmt);
+		sqlite3_close(db);
+		return false;
+	}
+
 	if(ret_code != SQLITE_DONE) {
-		LOG_ERROR << "Problem while evaluating SQL: " << sql << ". SQLite3 error_msg: " << sqlite3_errmsg(db);
+		LOG_ERROR << "Problem while evaluating SQL: " << sql.str() << ". SQLite3 error_msg: " << sqlite3_errmsg(db);
 	}
 
 	sqlite3_finalize(stmt);
 	sqlite3_close(db);
-	
-	return true;
+
+	// TODO - use hash and salt from DB
+	if(password == password_db) {
+		return true;
+	}
+	else {
+		return false;
+	}	
 }
