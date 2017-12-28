@@ -32,6 +32,7 @@ private:
 	HttpServer server;
 	std::unique_ptr<std::thread> server_thread;
 	TorrentManager& torrent_manager;
+	ConfigManager& config;
 	void define_resources();
 	std::string torrent_file_path;
 	std::string download_path;

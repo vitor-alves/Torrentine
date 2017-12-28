@@ -5,6 +5,10 @@
 #include <string>
 #include <cctype>
 #include "utility.h"
+#include <cstring>
+#include <openssl/evp.h>
+#include <openssl/sha.h>
+#include <openssl/crypto.h>
 
 std::string random_string(std::string chars, int const size) {
 	std::random_device rgn;
@@ -77,4 +81,24 @@ std::vector<std::string> split_string(std::string const &s, char const delim) {
 		splitted_strings.push_back(temp);
 	}
 	return splitted_strings;
+}
+
+// Source:
+// https://stackoverflow.com/a/22795472/4982631
+void PBKDF2_HMAC_SHA_512_string(const char* pass, const unsigned char* salt, int32_t iterations, uint32_t outputBytes, char* hexResult) {
+	unsigned int i;
+	unsigned char digest[outputBytes];
+	PKCS5_PBKDF2_HMAC(pass, strlen(pass), salt, strlen((char*)salt), iterations, EVP_sha512(), outputBytes, digest);
+	for (i = 0; i < sizeof(digest); i++)
+		sprintf(hexResult + (i * 2), "%02x", 255 & digest[i]);
+}
+
+std::string generate_password_hash(const char* pass, const unsigned char* salt) {
+	int32_t iterations = 1024; // Low, but acceptable. Kept like this to reduce calculation speed.
+	uint32_t outputBytes = 32;
+	uint32_t hexResult_size = 2*outputBytes+1; // 2*outputBytes+1 is 2 hex bytes per binary byte and one character at the end for the string-terminating \0
+	char hexResult[hexResult_size];
+	PBKDF2_HMAC_SHA_512_string(pass, salt, iterations, outputBytes, hexResult);
+	
+	return std::string(hexResult, hexResult_size-1); // -1 to ignore '\0'. We dont need it in std::strings
 }

@@ -15,7 +15,7 @@
 #include <sqlite3.h>
 #include "cpp-base64/base64.h"
 
-RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torrent_manager(torrent_manager) {
+RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torrent_manager(torrent_manager), config(config) {
 	try {
 		torrent_file_path = config.get_config<std::string>("directory.torrent_file_path");
 		download_path = config.get_config<std::string>("directory.download_path"); 
@@ -519,8 +519,6 @@ std::string RestAPI::decode_basic_auth(std::string authorization_base64) {
 	return base64_decode(s);
 }
 
-
-// TODO - create logic.
 bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	sqlite3 *db;
 	sqlite3_stmt *stmt;
@@ -536,8 +534,15 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	// TODO - avoid sql injection
 	std::stringstream sql;
 	sql << "select id,username,password,salt from users where username = " << "'" << username << "'";
-	
-	fs::path users_db_path = "state/database/bitsleek.db"; // TODO - get config
+
+	fs::path users_db_path;
+	try {
+		users_db_path = fs::path(config.get_config<std::string>("directory.database_path"));
+	}
+	catch(config_key_error const &e) {
+		LOG_ERROR << "Could not find database config. Authorization for user " << username << " denied." << " Could not get config: " << e.what();
+		return false;
+	}
 
 	if(sqlite3_open(users_db_path.string().c_str(), &db) != SQLITE_OK) {
 		LOG_ERROR << "Could not open database " << users_db_path.string() << ". SQLite3 error_msg: " << sqlite3_errmsg(db); 
@@ -565,9 +570,9 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 		salt_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
 		found = true;
 	}
-
+	
 	if(!found) {
-		LOG_ERROR << "Authorization for user " << username << " denied." << " User not found in database.";
+		LOG_DEBUG << "Authorization for user " << username << " denied." << " User not found in database.";
 		sqlite3_finalize(stmt);
 		sqlite3_close(db);
 		return false;
@@ -580,11 +585,13 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	sqlite3_finalize(stmt);
 	sqlite3_close(db);
 
-	// TODO - use hash and salt from DB
-	if(password == password_db) {
+	std::string password_hash = generate_password_hash(password.c_str(), (unsigned char*)salt_db.c_str());
+	if(password_hash == password_db) {
+		LOG_DEBUG << "Authorization for user " << username << " allowed.";
 		return true;
 	}
 	else {
+		LOG_DEBUG << "Authorization for user " << username << " denied." << " Wrong password.";
 		return false;
 	}	
 }
