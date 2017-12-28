@@ -493,16 +493,6 @@ bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query
 	return false;
 }
 
-
-  static int callback(void *NotUsed, int argc, char **argv, char **azColName){
-    int i;
-    for(i=0; i<argc; i++){
-      printf("%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-  }
-  printf("\n");
-  return 0;
-}
-
 /* TODO - improve this. It works for well formated strings, but I am not sure about what happens when 
  * a incorrectly formated string is passed as parameter */
 std::string RestAPI::decode_basic_auth(std::string authorization_base64) {
