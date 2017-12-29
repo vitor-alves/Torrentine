@@ -14,9 +14,6 @@
 #include <string>
 #include <sqlite3.h>
 #include "cpp-base64/base64.h"
-#include <boost/iostreams/filtering_streambuf.hpp>
-#include <boost/iostreams/copy.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
 
 RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torrent_manager(torrent_manager), config(config) {
 	try {
@@ -123,6 +120,19 @@ std::string RestAPI::validate_all_parameters(SimpleWeb::CaseInsensitiveMultimap 
 	return "";
 }
 
+bool RestAPI::accepts_gzip_encoding(SimpleWeb::CaseInsensitiveMultimap &header) {
+	auto accept_encoding = header.find("Accept-Encoding");
+	if(accept_encoding != header.end()) {
+		std::vector<std::string> encodings = split_string(accept_encoding->second, ',');
+		for(std::string i : encodings) {
+			if(i == "gzip") {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 // TODO - specify necessary headers in request and necessary headers in response
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
@@ -146,6 +156,9 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_header;
+	std::string http_status;
+	std::stringstream ss_response;
 	if(result == 0) {	
 		rapidjson::Value data(rapidjson::kArrayType);
 		rapidjson::Value d(rapidjson::kObjectType);
@@ -156,38 +169,16 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		
 		std::string json = stringfy_document(document);	
 	
-		// TODO - wrap gzip stuff in a function. Also add gzip to other responses. Corrently only 202 Accepted has it.   	
-		bool gzip_encoding = false;
-		SimpleWeb::CaseInsensitiveMultimap header = request->header;
-		auto accept_encoding = header.find("Accept-Encoding");
-		if(accept_encoding != header.end()) {
-			std::vector<std::string> encodings = split_string(accept_encoding->second, ',');
-			for(std::string i : encodings) {
-				if(i == "gzip") {
-					gzip_encoding = true;
-					break;
-				}
-			}	
-		}
-		
-		std::string http_status = "202 Accepted";
-		std::string http_header;
-		std::stringstream ss_response;	
-		if(gzip_encoding) {
-			std::stringstream ss_json(json), ss_compressed;
-			boost::iostreams::filtering_streambuf< boost::iostreams::input> in;
-			in.push(boost::iostreams::gzip_compressor());
-			in.push(ss_json);
-			boost::iostreams::copy(in, ss_compressed);
-	
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
 			http_header += "Content-Encoding: gzip";
-			ss_response << ss_compressed.str();
 		}
 		else {
 			ss_response << json;
 		}
 		http_header += "\r\nContent-Length: " + std::to_string(ss_response.str().length());
 		http_header += "\r\nContent-Type: application/json";
+		http_status = "202 Accepted";
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address << " Message: " << message;
@@ -205,14 +196,23 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		document.AddMember("errors", errors, allocator);
 		
 		std::string json = stringfy_document(document);
-		
-		std::string http_status = "404 Not Found";
-		std::string http_header = "Content-Length: " + std::to_string(json.length());
-	
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "\r\nContent-Length: " + std::to_string(ss_response.str().length());
+		http_header += "\r\nContent-Type: application/json";
+		http_status = "404 Not Found";
+
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address << " Message: " << message;
 
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << ss_response.str();
 	}
 }
 

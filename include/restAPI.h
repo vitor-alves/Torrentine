@@ -51,6 +51,7 @@ private:
 	bool is_authorization_valid(std::string authorization_base64);
 	bool is_parameter_format_valid();
 	std::string decode_basic_auth(std::string authorization_base64);
+	bool accepts_gzip_encoding(SimpleWeb::CaseInsensitiveMultimap &header);
 public:
 	RestAPI(ConfigManager &config, TorrentManager &torrent_manager);
 	~RestAPI();

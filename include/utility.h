@@ -11,3 +11,4 @@ bool str_to_bool(std::string s);
 bool get_files_in_folder(fs::path const root, std::string const extension, std::vector <fs::path> &filepaths);
 std::vector<std::string> split_string(std::string const &s, char const delim);
 std::string generate_password_hash(const char* pass, const unsigned char* salt);
+std::string gzip_encode(std::string s);

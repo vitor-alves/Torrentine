@@ -9,6 +9,9 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <openssl/crypto.h>
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 
 std::string random_string(std::string chars, int const size) {
 	std::random_device rgn;
@@ -101,4 +104,13 @@ std::string generate_password_hash(const char* pass, const unsigned char* salt) 
 	PBKDF2_HMAC_SHA_512_string(pass, salt, iterations, outputBytes, hexResult);
 	
 	return std::string(hexResult, hexResult_size-1); // -1 to ignore '\0'. We dont need it in std::strings
+}
+
+std::string gzip_encode(std::string s) {
+	std::stringstream ss(s), ss_compressed;
+	boost::iostreams::filtering_streambuf< boost::iostreams::input> in;
+	in.push(boost::iostreams::gzip_compressor());
+	in.push(ss);
+	boost::iostreams::copy(in, ss_compressed);
+	return ss_compressed.str();
 }
