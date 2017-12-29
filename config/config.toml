@@ -1,19 +1,19 @@
+[log]
+	max_files = 3
+	severity = "debug"
+	max_size = 5242880
+	file_path = "/mnt/DATA/Codacao/bitsleek/log/bitsleek-log.txt"
 [api]
 	address = "0.0.0.0"
 	port = 8040
-[log]
-	severity = "debug"
-	max_files = 3
-	file_path = "/mnt/DATA/Codacao/bitsleek/log/bitsleek-log.txt"
-	max_size = 5242880
+[directory]
+	database_path = "/mnt/DATA/Codacao/bitsleek/state/database/bitsleek.db"
+	torrent_file_path = "/mnt/DATA/Codacao/bitsleek/state/torrents/"
+	session_state_path = "/mnt/DATA/Codacao/bitsleek/state/session.state"
+	download_path = "/mnt/DATA/Codacao/bitsleek/temp/downloads/"
+	fastresume_path = "/mnt/DATA/Codacao/bitsleek/state/fastresume/"
 [libtorrent]
 	[libtorrent.extensions]
-		smart_ban_plugin = "enabled"
 		ut_metadata_plugin = "enabled"
 		ut_pex_plugin = "enabled"
-[directory]
-	torrent_file_path = "/mnt/DATA/Codacao/bitsleek/state/torrents/"
-	database_path = "/mnt/DATA/Codacao/bitsleek/state/database/bitsleek.db"
-	session_state_path = "/mnt/DATA/Codacao/bitsleek/state/session.state"
-	fastresume_path = "/mnt/DATA/Codacao/bitsleek/state/fastresume/"
-	download_path = "/mnt/DATA/Codacao/bitsleek/temp/downloads/"
+		smart_ban_plugin = "enabled"

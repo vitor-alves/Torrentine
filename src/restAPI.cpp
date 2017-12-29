@@ -171,19 +171,19 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
-			http_header += "Content-Encoding: gzip";
+			http_header += "Content-Encoding: gzip\r\n";
 		}
 		else {
 			ss_response << json;
 		}
-		http_header += "\r\nContent-Length: " + std::to_string(ss_response.str().length());
-		http_header += "\r\nContent-Type: application/json";
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
 		http_status = "202 Accepted";
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address << " Message: " << message;
 		
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << ss_response.str();
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
 		rapidjson::Value errors(rapidjson::kArrayType);
@@ -199,20 +199,20 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
-			http_header += "Content-Encoding: gzip";
+			http_header += "Content-Encoding: gzip\r\n";
 		}
 		else {
 			ss_response << json;
 		}
 
-		http_header += "\r\nContent-Length: " + std::to_string(ss_response.str().length());
-		http_header += "\r\nContent-Type: application/json";
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
 		http_status = "404 Not Found";
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address << " Message: " << message;
 
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << ss_response.str();
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 }
 
