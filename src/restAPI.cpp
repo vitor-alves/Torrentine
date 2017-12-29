@@ -14,6 +14,9 @@
 #include <string>
 #include <sqlite3.h>
 #include "cpp-base64/base64.h"
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 
 RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torrent_manager(torrent_manager), config(config) {
 	try {
@@ -151,15 +154,44 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		data.PushBack(d, allocator);
 		document.AddMember("data", data, allocator);
 		
-		std::string json = stringfy_document(document);
+		std::string json = stringfy_document(document);	
+	
+		// TODO - wrap gzip stuff in a function. Also add gzip to other responses. Corrently only 202 Accepted has it.   	
+		bool gzip_encoding = false;
+		SimpleWeb::CaseInsensitiveMultimap header = request->header;
+		auto accept_encoding = header.find("Accept-Encoding");
+		if(accept_encoding != header.end()) {
+			std::vector<std::string> encodings = split_string(accept_encoding->second, ',');
+			for(std::string i : encodings) {
+				if(i == "gzip") {
+					gzip_encoding = true;
+					break;
+				}
+			}	
+		}
 		
 		std::string http_status = "202 Accepted";
-		std::string http_header = "Content-Length: " + std::to_string(json.length());
+		std::string http_header;
+		std::stringstream ss_response;	
+		if(gzip_encoding) {
+			std::stringstream ss_json(json), ss_compressed;
+			boost::iostreams::filtering_streambuf< boost::iostreams::input> in;
+			in.push(boost::iostreams::gzip_compressor());
+			in.push(ss_json);
+			boost::iostreams::copy(in, ss_compressed);
+	
+			http_header += "Content-Encoding: gzip\r\n";
+			ss_response << ss_compressed.str();
+		}
+		else {
+			ss_response << json;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length());
 		
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address << " Message: " << message;
 		
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << ss_response.str();
 	}
 	else {
 		rapidjson::Value errors(rapidjson::kArrayType);
