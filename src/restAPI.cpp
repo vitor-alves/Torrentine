@@ -180,14 +180,15 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 			in.push(ss_json);
 			boost::iostreams::copy(in, ss_compressed);
 	
-			http_header += "Content-Encoding: gzip\r\n";
+			http_header += "Content-Encoding: gzip";
 			ss_response << ss_compressed.str();
 		}
 		else {
 			ss_response << json;
 		}
-		http_header += "Content-Length: " + std::to_string(ss_response.str().length());
-		
+		http_header += "\r\nContent-Length: " + std::to_string(ss_response.str().length());
+		http_header += "\r\nContent-Type: application/json";
+
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address << " Message: " << message;
 		
