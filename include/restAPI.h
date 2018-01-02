@@ -25,7 +25,10 @@ private:
 	};
 
 	enum api_parameter_format {
-		boolean
+		boolean,
+		int_number,
+		double_number,
+		text
 	};
 
 private:
@@ -44,12 +47,12 @@ private:
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request,
 		       			std::string const parameter);
 	void respond_invalid_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request);
-	bool validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const &allowed_values);
+	bool validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_query, int const parameter_format, std::vector<std::string> const &allowed_values);
 	std::string validate_all_parameters(SimpleWeb::CaseInsensitiveMultimap &query,
 			std::map<std::string, api_parameter> &required_parameters,
 			std::map<std::string, api_parameter> &optional_parameters);
 	bool is_authorization_valid(std::string authorization_base64);
-	bool is_parameter_format_valid();
+	bool is_parameter_format_valid(SimpleWeb::CaseInsensitiveMultimap::iterator const it_query, int const parameter_format);
 	std::string decode_basic_auth(std::string authorization_base64);
 	bool accepts_gzip_encoding(SimpleWeb::CaseInsensitiveMultimap &header);
 public:

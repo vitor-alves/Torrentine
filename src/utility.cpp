@@ -114,3 +114,31 @@ std::string gzip_encode(std::string s) {
 	boost::iostreams::copy(in, ss_compressed);
 	return ss_compressed.str();
 }
+
+bool is_text_boolean(std::string const s) {
+	if(s == "true" || s == "false") {
+		return true;
+	}
+	return false;
+}
+
+bool is_text_int_number(std::string const s) {
+	try {
+		long num = std::stoi(s);
+		return true;
+	}
+	catch(std::exception const &e) {
+		return false;	
+	}
+}
+
+bool is_text_double_number(std::string const s) {
+	try {
+		double num = std::stod(s);
+		return true;
+	}
+	catch(std::exception const &e) {
+		return false;
+	}
+}
+

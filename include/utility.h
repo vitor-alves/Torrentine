@@ -12,3 +12,6 @@ bool get_files_in_folder(fs::path const root, std::string const extension, std::
 std::vector<std::string> split_string(std::string const &s, char const delim);
 std::string generate_password_hash(const char* pass, const unsigned char* salt);
 std::string gzip_encode(std::string s);
+bool is_text_boolean(std::string const s);
+bool is_text_int_number(std::string const s);
+bool is_text_double_number(std::string const s);

@@ -168,7 +168,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		document.AddMember("data", data, allocator);
 		
 		std::string json = stringfy_document(document);	
-	
+		
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
 			http_header += "Content-Encoding: gzip\r\n";
@@ -503,23 +503,36 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 		<< " to " << request->remote_endpoint_address << " Message: " << message;
 }
 
-/* TODO - create logic */
-bool RestAPI::is_parameter_format_valid() {
-	return true;
-}
-
-bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_parameter, int const parameter_format, std::vector<std::string> const &allowed_values) {
-	if(it_parameter == query.end()) {
+bool RestAPI::is_parameter_format_valid(SimpleWeb::CaseInsensitiveMultimap::iterator const it_query, int const parameter_format) {
+	if(is_text_boolean(it_query->second) && parameter_format == api_parameter_format::boolean) {
+		return true;
+	}
+	else if(is_text_int_number(it_query->second) && parameter_format == api_parameter_format::int_number) {
+		return true;
+	}
+	else if(is_text_double_number(it_query->second) && parameter_format == api_parameter_format::double_number) {
+		return true;
+	}
+	else if(it_query->second.size() > 0 && parameter_format == api_parameter_format::text) {
+		return true;
+	}
+	else {
 		return false;
 	}
-	if(!is_parameter_format_valid()) {
+}
+
+bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query, SimpleWeb::CaseInsensitiveMultimap::iterator const it_query, int const parameter_format, std::vector<std::string> const &allowed_values) {
+	if(it_query == query.end()) {
+		return false;
+	}
+	if(!is_parameter_format_valid(it_query, parameter_format)) {
 		  return false;
 	}
 	if(allowed_values.empty()) {
 		return true;
 	}
 	for(std::string value : allowed_values) {
-		if(it_parameter->second == value) {
+		if(it_query->second == value) {
 			return true;
 		}
 	}
