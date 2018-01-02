@@ -133,7 +133,6 @@ bool RestAPI::accepts_gzip_encoding(SimpleWeb::CaseInsensitiveMultimap &header) 
 	return false;
 }
 
-// TODO - specify necessary headers in request and necessary headers in response
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
@@ -568,9 +567,8 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	std::string username = user_pass.at(0);
 	std::string password = user_pass.at(1);
 
-	// TODO - avoid sql injection
 	std::stringstream sql;
-	sql << "select id,username,password,salt from users where username = " << "'" << username << "'";
+	sql << "select id,username,password,salt from users where username = ?";
 
 	fs::path users_db_path;
 	try {
@@ -600,6 +598,7 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	std::string username_db;
 	std::string password_db;
 	std::string salt_db;
+	sqlite3_bind_text(stmt, 1, username.c_str(), username.size(), SQLITE_STATIC);
 	while((ret_code = sqlite3_step(stmt)) == SQLITE_ROW) {
 		id = sqlite3_column_int(stmt, 0);
 	       	username_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
