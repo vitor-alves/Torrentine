@@ -64,12 +64,12 @@ void RestAPI::stop_server() {
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
 	/* /torrents/<id>/stop - PATCH */
-	server.resource["^/session/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
+	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_stop(response, request); };
 	
 	/* /session/torrents/<id> - GET */
-	server.resource["^/session/torrents(?:/([0-9,]+)|)$"]["GET"] =
+	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_get(response, request); };
 	
