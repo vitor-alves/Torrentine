@@ -539,8 +539,6 @@ bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query
 	return false;
 }
 
-/* TODO - improve this. It works for well formated strings, but I am not sure about what happens when 
- * a incorrectly formated string is passed as parameter */
 std::string RestAPI::decode_basic_auth(std::string authorization_base64) {
 	std::stringstream ss(authorization_base64);
 	std::string s;
@@ -560,6 +558,9 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	sqlite3_stmt *stmt;
 
 	std::string authorization = decode_basic_auth(authorization_base64);
+	if(authorization.size() == 0) {
+		return false;
+	}
 	std::vector<std::string> user_pass = split_string(authorization, ':');
 	if(user_pass.size() != 2) {
 		return false;
