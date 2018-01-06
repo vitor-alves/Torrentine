@@ -37,13 +37,13 @@ public:
 	bool remove_torrent(unsigned long int id, bool remove_data);
 	unsigned long int stop_torrents(const std::vector<unsigned long int> ids, bool force_stop);
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);
-	bool save_session_state(ConfigManager &config);
-	bool load_session_state(ConfigManager &config);
-	void save_fastresume(ConfigManager &config, int resume_flags = lt::torrent_handle::save_info_dict);
-	void load_fastresume(ConfigManager &config);
+	bool save_session_state();
+	bool load_session_state();
+	void save_fastresume(int resume_flags = lt::torrent_handle::save_info_dict);
+	void load_fastresume();
 	void pause_session();
-	void load_session_settings(ConfigManager &config);
-	void load_session_extensions(ConfigManager &config);
+	void load_session_settings();
+	void load_session_extensions();
 };
 
 #endif

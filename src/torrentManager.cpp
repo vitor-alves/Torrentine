@@ -75,8 +75,7 @@ void TorrentManager::check_alerts(lt::alert *a) {
 		alerts.push_back(a);		
 	}
 
-	// TODO - needs optimizations. Cant just log errors and stay cool like nothing happened.
-	// There are a lot more alert messages that need to be here	
+	// TODO - There are a lot more alert messages that need to be here	
 	for (lt::alert const *a : alerts) {
 		switch(a->type()) {
 			case lt::torrent_finished_alert::alert_type:
@@ -144,11 +143,21 @@ bool TorrentManager::remove_torrent(const unsigned long int id, bool remove_data
 	return false;
 }
 
-// TODO - ids should be optional. If not present: stop all.
 unsigned long int TorrentManager::stop_torrents(const std::vector<unsigned long int> ids, bool force_stop) {
 
-	// TODO - this is sooooo inefficient. Use a Map instead of Vector to store torrents and change this code.
-	// Too dumb. fix this.
+	// No ids specified. Stop all torrents
+	if(ids.size() == 0) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			lt::torrent_handle handle = (*it)->get_handle();
+			if(force_stop)
+				handle.pause();
+			else
+				handle.pause(lt::torrent_handle::graceful_pause);
+		}
+		return 0;
+	}
+
+	// Check if all torrents in ids that will be stopped in fact exist
 	for(unsigned long int id : ids) {
 		bool found = false;
 		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
@@ -160,7 +169,7 @@ unsigned long int TorrentManager::stop_torrents(const std::vector<unsigned long 
 			return id;
 	}
 
-	// TODO - this is sooooo inefficient. Use a Map instead of Vector to store torrents and change this code.
+	// Stop torrents in ids
 	for(unsigned long int id : ids) {
 		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
 			if((*it)->get_id() == id) {
@@ -181,7 +190,7 @@ lt::alert const* TorrentManager::wait_for_alert(lt::time_duration max_wait) {
 	return a;
 }
 
-bool TorrentManager::load_session_state(ConfigManager &config) {
+bool TorrentManager::load_session_state() {
 	fs::path load_path;
 	try {
 		load_path = fs::path(config.get_config<std::string>("directory.session_state_path"));
@@ -205,7 +214,7 @@ bool TorrentManager::load_session_state(ConfigManager &config) {
 	return true;
 }
 
-bool TorrentManager::save_session_state(ConfigManager &config) {
+bool TorrentManager::save_session_state() {
 	lt::entry e;
 	session.save_state(e);
 	std::filebuf fb;
@@ -232,7 +241,7 @@ bool TorrentManager::save_session_state(ConfigManager &config) {
 	}
 }
 
-void TorrentManager::save_fastresume(ConfigManager &config, int resume_flags) {
+void TorrentManager::save_fastresume(int resume_flags) {
 	fs::path fastresume_path;
 	
 	try {
@@ -299,7 +308,7 @@ void TorrentManager::save_fastresume(ConfigManager &config, int resume_flags) {
 	}
 }
 
-void TorrentManager::load_fastresume(ConfigManager &config) {
+void TorrentManager::load_fastresume() {
 	fs::path fastresume_path;
 	try {
 		fastresume_path = fs::path(config.get_config<std::string>("directory.fastresume_path"));
@@ -374,7 +383,7 @@ void TorrentManager::pause_session() {
 }
 
 
-void TorrentManager::load_session_settings(ConfigManager &config) {
+void TorrentManager::load_session_settings() {
 	
 	// TODO - use others settings too. I will probably need to store settings in config file.	
 	lt::settings_pack pack;
@@ -385,7 +394,7 @@ void TorrentManager::load_session_settings(ConfigManager &config) {
 	LOG_DEBUG << "Loaded session settings";
 }
 
-void TorrentManager::load_session_extensions(ConfigManager &config) {
+void TorrentManager::load_session_extensions() {
 	bool ut_metadata_plugin_enabled;
 	bool ut_pex_plugin_enabled;
 	bool smart_ban_plugin_enabled;

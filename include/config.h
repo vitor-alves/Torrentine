@@ -18,7 +18,6 @@ public:
 	};
 };
 
-// TODO - make this singleton
 class ConfigManager {
 private:
 	std::shared_ptr<cpptoml::table> config_toml;
@@ -41,7 +40,7 @@ public:
 	}
 	// This assumes the path/key are valid and exist in the config file
 	// TODO - this needs testing. I am not using this yet
-	// TODO - setting config is not so simple. Changing things like download path may cause troubles.
+	// TODO - setting config is not so simple. Changing things like download path may cause troubles. Maybe a full restart is needed to apply some settings because if they were changed while program is running problems would occur.
 	// Find a good way to deal with this.
 	template <class T>
 	void set_config(std::string const path, std::string const key, T const value) {

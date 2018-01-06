@@ -231,8 +231,7 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 			object.AddMember("up_total", status.total_upload, allocator); 
 			object.AddMember("seeds", status.num_seeds, allocator); 
 			object.AddMember("peers", status.num_peers, allocator);
-			/* TODO - be careful here! fix this later! info_hash() returns the info-hash of the torrent.
-			  If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
+			/* info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
 			   the returned value is undefined. */
 			std::stringstream ss_info_hash;
 			ss_info_hash << status.info_hash;

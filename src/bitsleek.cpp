@@ -42,12 +42,11 @@ int main(int argc, char const* argv[])
 
 	initialize_log(config);
 	
-	// TODO - torrentManager should have a reference to config in its constructor and I should remove all config from method calls	
 	TorrentManager torrent_manager(config);
-	torrent_manager.load_session_settings(config);
-	torrent_manager.load_session_state(config);
-	torrent_manager.load_session_extensions(config);
-	torrent_manager.load_fastresume(config);
+	torrent_manager.load_session_settings();
+	torrent_manager.load_session_state();
+	torrent_manager.load_session_extensions();
+	torrent_manager.load_fastresume();
 	add_test_torrents(torrent_manager, config);
 	
 
@@ -64,17 +63,17 @@ int main(int argc, char const* argv[])
 		// are some special cases that need to be addressed before putting this in another thread. Libtorrent says:
 		// Make sure to not remove_torrent() before you receive the save_resume_data_alert though
 		if(std::chrono::steady_clock::now() - last_save_fastresume > std::chrono::seconds(60)) {
-			torrent_manager.save_fastresume(config, lt::torrent_handle::save_resume_flags_t::save_info_dict |
+			torrent_manager.save_fastresume(lt::torrent_handle::save_resume_flags_t::save_info_dict |
 							lt::torrent_handle::save_resume_flags_t::only_if_modified);
 			last_save_fastresume = std::chrono::steady_clock::now();
 		} 
 	}
 
 	torrent_manager.pause_session(); // Session is paused so fastresume data will be valid once it finishes
-	torrent_manager.save_fastresume(config, lt::torrent_handle::save_resume_flags_t::flush_disk_cache  |
+	torrent_manager.save_fastresume(lt::torrent_handle::save_resume_flags_t::flush_disk_cache  |
 					lt::torrent_handle::save_resume_flags_t::save_info_dict            |
 					lt::torrent_handle::save_resume_flags_t::only_if_modified);
-	torrent_manager.save_session_state(config);
+	torrent_manager.save_session_state();
 
 	config.save_config(config_file);
 	
