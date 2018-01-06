@@ -10,7 +10,7 @@
 #include <libtorrent/extensions/ut_pex.hpp>
 #include <libtorrent/extensions/smart_ban.hpp>
 
-TorrentManager::TorrentManager() {
+TorrentManager::TorrentManager(ConfigManager &config) : config(config) {
 	greatest_id = 1;
 	outstanding_resume_data = 0;
 }
@@ -379,7 +379,7 @@ void TorrentManager::load_session_settings(ConfigManager &config) {
 	// TODO - use others settings too. I will probably need to store settings in config file.	
 	lt::settings_pack pack;
 	pack.set_str(lt::settings_pack::user_agent, "Bitsleek 0.0.0"); // TODO - use global variable bitsleek_version
-	pack.set_int(lt::settings_pack::active_downloads, 5); // TODO - put this in config.ini
+	pack.set_int(lt::settings_pack::active_downloads, 5); // TODO - put this in config.ini (maybe this option is alreary in fastresume)
 	
 	session.apply_settings(pack);
 	LOG_DEBUG << "Loaded session settings";

@@ -43,7 +43,7 @@ int main(int argc, char const* argv[])
 	initialize_log(config);
 	
 	// TODO - torrentManager should have a reference to config in its constructor and I should remove all config from method calls	
-	TorrentManager torrent_manager;
+	TorrentManager torrent_manager(config);
 	torrent_manager.load_session_settings(config);
 	torrent_manager.load_session_state(config);
 	torrent_manager.load_session_extensions(config);

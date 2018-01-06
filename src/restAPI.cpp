@@ -158,14 +158,10 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
-	if(result == 0) {	
-		rapidjson::Value data(rapidjson::kArrayType);
-		rapidjson::Value d(rapidjson::kObjectType);
+	if(result == 0) {
 		char const *message = "An attempt to stop the torrents will be made asynchronously";
-		d.AddMember("message", rapidjson::StringRef(message), allocator);
-		data.PushBack(d, allocator);
-		document.AddMember("data", data, allocator);
-		
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+
 		std::string json = stringfy_document(document);	
 		
 		if(accepts_gzip_encoding(request->header)) {

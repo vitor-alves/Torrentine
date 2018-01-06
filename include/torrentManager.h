@@ -25,8 +25,9 @@ private:
 	unsigned long int greatest_id;
 	unsigned long int outstanding_resume_data;
 	lt::add_torrent_params read_resume_data(lt::bdecode_node const& rd, lt::error_code& ec);
+	ConfigManager &config;
 public:
-	TorrentManager();
+	TorrentManager(ConfigManager &config);
 	~TorrentManager();
 	bool add_torrent_async(const std::string filename,const std::string save_path);
 	void check_alerts(lt::alert *a = NULL);
