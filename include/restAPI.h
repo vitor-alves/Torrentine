@@ -1,4 +1,5 @@
 #include "simple-web-server/server_http.hpp"
+#include "simple-web-server/utility.hpp"
 #include "torrentManager.h"
 #include "config.h"
 #include "rapidjson/document.h"

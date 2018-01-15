@@ -10,7 +10,7 @@
 #endif
 
 namespace SimpleWeb {
-  typedef asio::ssl::stream<asio::ip::tcp::socket> HTTPS;
+  using HTTPS = asio::ssl::stream<asio::ip::tcp::socket>;
 
   template <>
   class Client<HTTPS> : public ClientBase<HTTPS> {
@@ -40,23 +40,23 @@ namespace SimpleWeb {
   protected:
     asio::ssl::context context;
 
-    std::shared_ptr<Connection> create_connection() override {
-      return std::make_shared<Connection>(cancel_handlers, cancel_handlers_mutex, config.timeout, *io_service, context);
+    std::shared_ptr<Connection> create_connection() noexcept override {
+      return std::make_shared<Connection>(handler_runner, config.timeout, *io_service, context);
     }
 
     void connect(const std::shared_ptr<Session> &session) override {
       if(!session->connection->socket->lowest_layer().is_open()) {
         auto resolver = std::make_shared<asio::ip::tcp::resolver>(*io_service);
         resolver->async_resolve(*query, [this, session, resolver](const error_code &ec, asio::ip::tcp::resolver::iterator it) {
-          auto cancel_pair = session->connection->cancel_handlers_bool_and_lock();
-          if(cancel_pair.first)
+          auto lock = session->connection->handler_runner->continue_lock();
+          if(!lock)
             return;
           if(!ec) {
             session->connection->set_timeout(this->config.timeout_connect);
             asio::async_connect(session->connection->socket->lowest_layer(), it, [this, session, resolver](const error_code &ec, asio::ip::tcp::resolver::iterator /*it*/) {
               session->connection->cancel_timeout();
-              auto cancel_pair = session->connection->cancel_handlers_bool_and_lock();
-              if(cancel_pair.first)
+              auto lock = session->connection->handler_runner->continue_lock();
+              if(!lock)
                 return;
               if(!ec) {
                 asio::ip::tcp::no_delay option(true);
@@ -70,25 +70,32 @@ namespace SimpleWeb {
                   write_stream << "CONNECT " + host_port + " HTTP/1.1\r\n"
                                << "Host: " << host_port << "\r\n\r\n";
                   session->connection->set_timeout(this->config.timeout_connect);
-                  asio::async_write(session->connection->socket->next_layer(), *write_buffer, [this, session, write_buffer](const error_code &ec, size_t /*bytes_transferred*/) {
+                  asio::async_write(session->connection->socket->next_layer(), *write_buffer, [this, session, write_buffer](const error_code &ec, std::size_t /*bytes_transferred*/) {
                     session->connection->cancel_timeout();
-                    auto cancel_pair = session->connection->cancel_handlers_bool_and_lock();
-                    if(cancel_pair.first)
+                    auto lock = session->connection->handler_runner->continue_lock();
+                    if(!lock)
                       return;
                     if(!ec) {
-                      std::shared_ptr<Response> response(new Response());
+                      std::shared_ptr<Response> response(new Response(this->config.max_response_streambuf_size));
                       session->connection->set_timeout(this->config.timeout_connect);
-                      asio::async_read_until(session->connection->socket->next_layer(), response->content_buffer, "\r\n\r\n", [this, session, response](const error_code &ec, size_t /*bytes_transferred*/) {
+                      asio::async_read_until(session->connection->socket->next_layer(), response->streambuf, "\r\n\r\n", [this, session, response](const error_code &ec, std::size_t /*bytes_transferred*/) {
                         session->connection->cancel_timeout();
-                        auto cancel_pair = session->connection->cancel_handlers_bool_and_lock();
-                        if(cancel_pair.first)
+                        auto lock = session->connection->handler_runner->continue_lock();
+                        if(!lock)
                           return;
+                        if((!ec || ec == asio::error::not_found) && response->streambuf.size() == response->streambuf.max_size()) {
+                          session->callback(session->connection, make_error_code::make_error_code(errc::message_size));
+                          return;
+                        }
                         if(!ec) {
-                          response->parse_header();
-                          if(response->status_code.empty() || response->status_code.compare(0, 3, "200") != 0)
-                            session->callback(session->connection, make_error_code::make_error_code(errc::permission_denied));
-                          else
-                            this->handshake(session);
+                          if(!ResponseMessage::parse(response->content, response->http_version, response->status_code, response->header))
+                            session->callback(session->connection, make_error_code::make_error_code(errc::protocol_error));
+                          else {
+                            if(response->status_code.empty() || response->status_code.compare(0, 3, "200") != 0)
+                              session->callback(session->connection, make_error_code::make_error_code(errc::permission_denied));
+                            else
+                              this->handshake(session);
+                          }
                         }
                         else
                           session->callback(session->connection, ec);
@@ -114,11 +121,13 @@ namespace SimpleWeb {
     }
 
     void handshake(const std::shared_ptr<Session> &session) {
+      SSL_set_tlsext_host_name(session->connection->socket->native_handle(), this->host.c_str());
+
       session->connection->set_timeout(this->config.timeout_connect);
       session->connection->socket->async_handshake(asio::ssl::stream_base::client, [this, session](const error_code &ec) {
         session->connection->cancel_timeout();
-        auto cancel_pair = session->connection->cancel_handlers_bool_and_lock();
-        if(cancel_pair.first)
+        auto lock = session->connection->handler_runner->continue_lock();
+        if(!lock)
           return;
         if(!ec)
           this->write(session);

@@ -77,7 +77,7 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->torrents_delete(response, request); };
 
-	server.resource["^/torrents/add_file$"]["POST"] =
+	server.resource["^/v1.0/session/torrents$"]["POST"] =
 	       	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_add(response, request); };
 
@@ -176,7 +176,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		http_status = "202 Accepted";
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
-			<< " to " << request->remote_endpoint_address << " Message: " << message;
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
 		
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
@@ -205,7 +205,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		http_status = "404 Not Found";
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
-			<< " to " << request->remote_endpoint_address << " Message: " << message;
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
 
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
@@ -299,6 +299,73 @@ void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, st
 
 void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	try {
+		std::string buffer;
+		buffer.resize(131072);
+
+		std::string boundary;
+		if(!getline(request->content, boundary)) {
+			// error response
+			return;
+		}
+
+		while(true) {
+			std::stringstream file;
+			std::string filename;
+
+			auto header = SimpleWeb::HttpHeader::parse(request->content);
+			auto header_it = header.find("Content-Disposition");
+			std::cout << "BBBBBBBBBBBBBBBB" << std::endl;
+			if(header_it != header.end()) {
+				auto content_disposition_attributes = SimpleWeb::HttpHeader::FieldValue::SemicolonSeparatedAttributes::parse(header_it->second);
+				auto filename_it = content_disposition_attributes.find("filename");
+				if(filename_it != content_disposition_attributes.end()) {
+					filename = filename_it->second;
+					std::cout << "AAAAAAAAAAAA" << filename << std::endl;
+					bool add_newline_next = false;
+					while(true) {
+						request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
+						if(request->content.eof()) {
+							// error response
+							return;
+						}
+						auto size = request->content.gcount();
+
+						if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
+               std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
+               buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
+              				break;
+	
+
+				            if(add_newline_next) {
+              file.put('\n');
+              add_newline_next = false;
+            }
+					
+
+					     if(!request->content.fail()) { // got line or section that ended with newline
+              file.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
+              add_newline_next = true;
+            }
+            else
+              file.write(buffer.c_str(), size);
+
+	    std::ofstream ofs(filename);
+	    ofs << file.str();
+	    ofs.close();
+
+	    request->content.clear(); // clear stream state
+
+					}
+
+				}
+			}
+			else {
+				// error response
+				return;
+			}
+		}
+		
+		
 		// Generate .torrent file from content
 		std::string name;
 		do {
@@ -452,7 +519,7 @@ void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	
 	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
-		<< " to " << request->remote_endpoint_address << " Message: " << message;
+		<< " to " << request->remote_endpoint_address() << " Message: " << message;
 }
 
 std::string RestAPI::stringfy_document(rapidjson::Document const &document, bool const pretty) {
@@ -494,7 +561,7 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 	
 	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
-		<< " to " << request->remote_endpoint_address << " Message: " << message;
+		<< " to " << request->remote_endpoint_address() << " Message: " << message;
 }
 
 bool RestAPI::is_parameter_format_valid(SimpleWeb::CaseInsensitiveMultimap::iterator const it_query, int const parameter_format) {
