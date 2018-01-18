@@ -297,16 +297,16 @@ void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, st
 	}		
 }
 
-void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+int add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 		std::string buffer;
 		buffer.resize(131072);
-
+		
 		std::string boundary;
 		if(!getline(request->content, boundary)) {
 			response->write(SimpleWeb::StatusCode::client_error_bad_request);
-			return;
+			return 1; /* Could not find boundary */
 		}
-
+		
 		while(true) {
 			std::stringstream file;
 			std::string filename;
@@ -321,9 +321,10 @@ void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, s
 					bool add_newline_next = false;
 					while(true) {
 						request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
+						std::cout << "ABC" << request->content.string() << std::endl << std::endl;
 						if(request->content.eof()) {
 							response->write(SimpleWeb::StatusCode::client_error_bad_request);
-							return;
+							return 2; /*  */
 						}
 						auto size = request->content.gcount();
 
@@ -353,17 +354,24 @@ void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, s
 			}
 			else {
 				response->write("oi"); // Write empty success response
-				return;
+				return 0; /* Success */
 			}
 		}
 }
 
 void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	try {
+		/*
+		if(!validate_authorization(request)) {
+			respond_invalid_authorization(response, request);
+			return;
+		}
+		*/
+		
+		int result = add_torrents_from_request(response, request);
+		
 
-		// TODO - this is INCOMPLETE
-		add_torrents_from_request(response, request);
-				
+
 	/*	
 		// Generate .torrent file from content
 		std::string name;
