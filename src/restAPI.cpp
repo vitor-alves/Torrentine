@@ -72,8 +72,9 @@ void RestAPI::define_resources() {
 	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_get(response, request); };
-	
-	server.resource["^/torrents$"]["DELETE"] =
+
+	/* /session/torrents/<id> - DELETE */
+	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["DELETE"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->torrents_delete(response, request); };
 
@@ -256,107 +257,148 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 }
 
 void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	try {
-		
+		// DISABLE ONLY FOR TESTS. REMOVE COMMENTS LATER
+		//if(!validate_authorization(request)) {
+		//	respond_invalid_authorization(response, request);
+		//	return;
+		//}
+
+		std::map<std::string, api_parameter> required_parameters = {};
+		std::map<std::string, api_parameter> optional_parameters = {
+			{"remove_data",{"remove_data","false",api_parameter_format::boolean,{"true","false"}}} };
 		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-		if( query.find("id") == query.end() || query.find("remove_data") == query.end() )
-			throw std::invalid_argument("Invalid or missing parameters in request");
+		std::string invalid_parameter = validate_all_parameters(query, required_parameters, optional_parameters);
+		if(invalid_parameter.length() > 0) { 
+			respond_invalid_parameter(response, request, invalid_parameter);
+			return;
+		}
+
+		std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 		
-		const unsigned long int id = stoul(query.find("id")->second);
-		bool remove_data;
-		std::istringstream(query.find("remove_data")->second) >> std::boolalpha >> remove_data;
-		bool result = torrent_manager.remove_torrent(id, remove_data);
+		unsigned long int result = torrent_manager.remove_torrent(ids, str_to_bool(optional_parameters.find("remove_data")->second.value));
 		
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+		std::string http_header;
 		std::string http_status;
-		if(result == true) {	
-			document.AddMember("status", "An attempt to remove the torrent will be made asynchronously", allocator);
-			http_status = "HTTP/1.1 202 Accepted\r\n";
-		}
-		else {	
-			document.AddMember("status", "Could not find torrent", allocator);
-			http_status = "HTTP/1.1 404 Not Found\r\n";
-		}
-		document.AddMember("id", id, allocator);
+		std::stringstream ss_response;
+		if(result == 0) {
+			char const *message = "An attempt to remove the torrents will be made asynchronously";
+			document.AddMember("message", rapidjson::StringRef(message), allocator);
 
-		rapidjson::StringBuffer string_buffer;
-		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
-		document.Accept(writer);
-		std::string json = string_buffer.GetString();
-
-		*response << http_status
-				<< "Content-Length: " << json.length() << "\r\n\r\n"
-				<< json;
-	}
-	catch(const std::exception &e) {
-		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
-					<< e.what();
-		LOG_DEBUG << "HTTP Bad Request: " << e.what();
-	}		
-}
-
-int add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-		std::string buffer;
-		buffer.resize(131072);
-		
-		std::string boundary;
-		if(!getline(request->content, boundary)) {
-			response->write(SimpleWeb::StatusCode::client_error_bad_request);
-			return 1; /* Could not find boundary */
-		}
-		
-		while(true) {
-			std::stringstream file;
-			std::string filename;
-
-			auto header = SimpleWeb::HttpHeader::parse(request->content);
-			auto header_it = header.find("Content-Disposition");
-			if(header_it != header.end()) {
-				auto content_disposition_attributes = SimpleWeb::HttpHeader::FieldValue::SemicolonSeparatedAttributes::parse(header_it->second);
-				auto filename_it = content_disposition_attributes.find("filename");
-				if(filename_it != content_disposition_attributes.end()) {
-					filename = filename_it->second;
-					bool add_newline_next = false;
-					while(true) {
-						request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
-						std::cout << "ABC" << request->content.string() << std::endl << std::endl;
-						if(request->content.eof()) {
-							response->write(SimpleWeb::StatusCode::client_error_bad_request);
-							return 2; /*  */
-						}
-						auto size = request->content.gcount();
-
-						if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
-               std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
-               buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
-							break;
-
-						if(add_newline_next) {
-							file.put('\n');
-							add_newline_next = false;
-						}
-
-						if(!request->content.fail()) { // got line or section that ended with newline
-							file.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
-							add_newline_next = true;
-						}
-						else
-							file.write(buffer.c_str(), size);
-						std::ofstream ofs(filename);
-						ofs << file.rdbuf();
-						ofs.close();
-
-						request->content.clear(); // clear stream state
-					}
-				}
+			std::string json = stringfy_document(document);	
+			
+			if(accepts_gzip_encoding(request->header)) {
+				ss_response << gzip_encode(json);
+				http_header += "Content-Encoding: gzip\r\n";
 			}
 			else {
-				response->write("oi"); // Write empty success response
-				return 0; /* Success */
+				ss_response << json;
 			}
+			http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+			http_header += "Content-Type: application/json\r\n";
+			http_status = "202 Accepted";
+
+			LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+				<< " to " << request->remote_endpoint_address() << " Message: " << message;
+			
+			*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3110, allocator);
+		char const *message = error_codes.find(3110)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+		
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
 		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
+void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+    std::string buffer;
+    buffer.resize(131072);
+
+    std::string boundary;
+    if(!getline(request->content, boundary)) {
+      response->write(SimpleWeb::StatusCode::client_error_bad_request);
+      return;
+    }
+
+    // go through all content parts
+    while(true) {
+      std::stringstream file; // std::stringstream is used as example output type
+      std::string filename;
+
+      auto header = SimpleWeb::HttpHeader::parse(request->content);
+      auto header_it = header.find("Content-Disposition");
+      if(header_it != header.end()) {
+        auto content_disposition_attributes = SimpleWeb::HttpHeader::FieldValue::SemicolonSeparatedAttributes::parse(header_it->second);
+        auto filename_it = content_disposition_attributes.find("filename");
+        if(filename_it != content_disposition_attributes.end()) {
+          filename = filename_it->second;
+
+          bool add_newline_next = false; // there is an extra newline before content boundary, this avoids adding this extra newline to file
+          // store file content in variable file
+          while(true) {
+            request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
+            if(request->content.eof()) {
+              response->write(SimpleWeb::StatusCode::client_error_bad_request);
+              return;
+            }
+            auto size = request->content.gcount();
+
+            if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
+               std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
+               buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
+              break;
+
+            if(add_newline_next) {
+              file.put('\n');
+              add_newline_next = false;
+            }
+
+            if(!request->content.fail()) { // got line or section that ended with newline
+              file.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
+              add_newline_next = true;
+            }
+            else
+              file.write(buffer.c_str(), size);
+
+            request->content.clear(); // clear stream state
+          }
+
+		std::ofstream ofs(filename);
+		ofs << file.rdbuf();
+		ofs.close();
+        }
+      }
+      else { // no more parts
+        response->write(); // Write empty success response
+        return;
+      }
+    }
 }
 
 void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
@@ -368,10 +410,8 @@ void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::
 		}
 		*/
 		
-		int result = add_torrents_from_request(response, request);
+		add_torrents_from_request(response, request);
 		
-
-
 	/*	
 		// Generate .torrent file from content
 		std::string name;
