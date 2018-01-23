@@ -159,6 +159,41 @@ unsigned long int TorrentManager::remove_torrent(const std::vector<unsigned long
 	return 0;
 }
 
+unsigned long int TorrentManager::recheck_torrents(const std::vector<unsigned long int> ids) {
+
+	// No ids specified. Recheck all torrents
+	if(ids.size() == 0) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			lt::torrent_handle handle = (*it)->get_handle();
+			handle.force_recheck();
+		}
+		return 0;
+	}
+
+	// Check if all torrents in ids that will be rechecked in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Recheck torrents in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				lt::torrent_handle handle = (*it)->get_handle();
+				handle.force_recheck();
+			}
+		}
+	}
+	return 0;
+}
+
 unsigned long int TorrentManager::stop_torrents(const std::vector<unsigned long int> ids, bool force_stop) {
 
 	// No ids specified. Stop all torrents
