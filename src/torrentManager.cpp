@@ -445,3 +445,38 @@ void TorrentManager::load_session_extensions() {
 	}
 	LOG_DEBUG << log_msg.str();
 }
+
+unsigned long int TorrentManager::start_torrents(const std::vector<unsigned long int> ids) {
+
+	// No ids specified. Start all torrents
+	if(ids.size() == 0) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			lt::torrent_handle handle = (*it)->get_handle();
+				handle.resume();
+		}
+		return 0;
+	}
+
+	// Check if all torrents in ids that will be started in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Start torrents in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				lt::torrent_handle handle = (*it)->get_handle();
+					handle.resume();
+			}
+		}
+	}
+	return 0;
+}
