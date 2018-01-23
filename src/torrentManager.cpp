@@ -236,32 +236,43 @@ unsigned long int TorrentManager::stop_torrents(const std::vector<unsigned long 
 }
 
 unsigned long int TorrentManager::get_files_torrents(const std::vector<unsigned long int> ids, bool piece_granularity) {
-	torrent_files_info tfi;
+	std::vector<torrent_files> tf_vector;
 
 	// No ids specified. Get files from all torrents
 	if(ids.size() == 0) {
 		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
 			lt::torrent_handle handle = (*it)->get_handle();
+			torrent_files tf;
 			std::vector<boost::int64_t> progress;
 			if(piece_granularity) {
 				handle.file_progress(progress, lt::torrent_handle::piece_granularity);
-		       	
 			}	
 			else {
 				handle.file_progress(progress);
 			}
+			tf.progress = progress;
 			//  If the torrent doesn't have metadata, the pointer will not be initialized (i.e. a NULL pointer).
 			boost::shared_ptr<const lt::torrent_info> ti = handle.torrent_file();
 			if(ti) {
-				int num_files = ti->files().num_files();
+				std::vector<std::string> filenames;
+				std::vector<boost::int64_t> filesizes;
+				int num_files = ti->num_files();
 				for(int i = 0; i < num_files; i++) {
-					tfi.files_names.push_back(ti->files().file_name(i));	
+					filenames.push_back(ti->files().file_name(i));
+					filesizes.push_back(ti->files().file_size(i));
 				}
+				tf.filenames = filenames;
+				tf.filesizes = filesizes;
+				tf.num_files = num_files;
 			}
 			else {
+				// TODO - return error.(maybe sould return 0 in progress empty name???) Torrent not initialized.
 			}
-			tfi.files_progress.push_back(progress);	
+			tf_vector.push_back(tf);
+			LOG_ERROR << "Name " << tf_vector.at(0).filenames.at(0) << " Progress " << tf_vector.at(0).progress.at(0) << " Size " << tf_vector.at(0).filesizes.at(0)
+				<< " NumFiles " << tf_vector.at(0).num_files;
 		}
+
 		return 0;
 	}
 

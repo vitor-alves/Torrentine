@@ -20,9 +20,11 @@ namespace fs = boost::filesystem;
 
 class TorrentManager {
 private:
-	struct torrent_files_info {
-		std::vector<std::string> files_names;
-		std::vector<std::vector<boost::int64_t>> files_progress;
+	struct torrent_files {
+		int num_files;
+		std::vector<std::string> filenames;
+		std::vector<boost::int64_t> progress;
+		std::vector<boost::int64_t> filesizes;
 	};
 	
 private:
