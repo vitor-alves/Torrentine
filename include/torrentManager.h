@@ -34,7 +34,7 @@ public:
 	void update_torrent_console_view();
 	std::vector<std::shared_ptr<Torrent>> const & get_torrents();
 	unsigned long int const generate_torrent_id();
-	bool remove_torrent(unsigned long int id, bool remove_data);
+	unsigned long int remove_torrent(const std::vector<unsigned long int> ids, bool remove_data);
 	unsigned long int stop_torrents(const std::vector<unsigned long int> ids, bool force_stop);
 	unsigned long int start_torrents(const std::vector<unsigned long int> ids);
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);

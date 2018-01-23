@@ -1,4 +1,5 @@
 #include "simple-web-server/server_http.hpp"
+#include "simple-web-server/utility.hpp"
 #include "torrentManager.h"
 #include "config.h"
 #include "rapidjson/document.h"
@@ -41,7 +42,8 @@ private:
 	std::string download_path;
 	std::unordered_map<int, std::string> const error_codes = {{4150, "invalid Authorization. Access denied"},
 								{4100, "invalid parameter in query string or missing required parameter"},
-								{3100, "could not stop torrent"}};
+								{3100, "could not stop torrent"},
+								{3110, "could not remove torrent"}};
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> const request);
 	std::string stringfy_document(rapidjson::Document const &document, bool const pretty=true);
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request,

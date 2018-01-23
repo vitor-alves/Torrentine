@@ -129,18 +129,34 @@ unsigned long int const TorrentManager::generate_torrent_id() {
 }
 
 // An torrent_deleted_alert is posted when the removal occurs 
-bool TorrentManager::remove_torrent(const unsigned long int id, bool remove_data) {
+unsigned long int TorrentManager::remove_torrent(const std::vector<unsigned long int> ids, bool remove_data) {
 	// TODO - this is sooooo inefficient. Use a Map instead of Vector to store torrents and change this code.
-	for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
-		if((*it)->get_id() == id) {
-			lt::torrent_handle handle = (*it)->get_handle();
-			session.remove_torrent(handle, remove_data);
-			(*it).reset();
-			torrents.erase(it);
-			return true;	
+	
+	// Check if all torrents in ids that will be stopped in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
 		}
-	}	
-	return false;
+		if(!found)
+			return id;
+	}
+
+
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				lt::torrent_handle handle = (*it)->get_handle();
+				session.remove_torrent(handle, remove_data);
+				(*it).reset();
+				torrents.erase(it);
+				break;	
+			}
+		}
+	}
+	return 0;
 }
 
 unsigned long int TorrentManager::start_torrents(const std::vector<unsigned long int> ids) {
