@@ -63,17 +63,12 @@ void RestAPI::stop_server() {
 
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
-	/* /v1.0/session/torrents/<ids>/stop - PATCH */
+	/* /torrents/<id>/stop - PATCH */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_stop(response, request); };
-
-	/* /v1.0/session/torrents/<ids>/start - PATCH */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)start$"]["PATCH"] =
-	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->torrents_start(response, request); };
-
-	/* /v1.0/session/torrents/<ids> - GET */
+	
+	/* /session/torrents/<id> - GET */
 	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_get(response, request); };
@@ -83,7 +78,6 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->torrents_delete(response, request); };
 
-	/* /v1.0/session/torrents - POST */
 	server.resource["^/v1.0/session/torrents$"]["POST"] =
 	       	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_add(response, request); };
@@ -138,74 +132,6 @@ bool RestAPI::accepts_gzip_encoding(SimpleWeb::CaseInsensitiveMultimap &header) 
 		}
 	}
 	return false;
-}
-
-void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	if(!validate_authorization(request)) {
-		respond_invalid_authorization(response, request);
-		return;
-	}
-
-	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
-	unsigned long int result = torrent_manager.start_torrents(ids);
-	
-	rapidjson::Document document;
-	document.SetObject();
-	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
-	std::string http_status;
-	std::stringstream ss_response;
-	if(result == 0) {
-		char const *message = "An attempt to start the torrents will be made asynchronously";
-		document.AddMember("message", rapidjson::StringRef(message), allocator);
-
-		std::string json = stringfy_document(document);	
-		
-		if(accepts_gzip_encoding(request->header)) {
-			ss_response << gzip_encode(json);
-			http_header += "Content-Encoding: gzip\r\n";
-		}
-		else {
-			ss_response << json;
-		}
-		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
-		http_header += "Content-Type: application/json\r\n";
-		http_status = "202 Accepted";
-
-		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
-			<< " to " << request->remote_endpoint_address << " Message: " << message;
-		
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
-	}
-	else {
-		rapidjson::Value errors(rapidjson::kArrayType);
-		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 3100, allocator);
-		char const *message = error_codes.find(3100)->second.c_str();
-		e.AddMember("message", rapidjson::StringRef(message), allocator);
-		e.AddMember("id", result, allocator);
-		errors.PushBack(e, allocator);
-		document.AddMember("errors", errors, allocator);
-		
-		std::string json = stringfy_document(document);
-
-		if(accepts_gzip_encoding(request->header)) {
-			ss_response << gzip_encode(json);
-			http_header += "Content-Encoding: gzip\r\n";
-		}
-		else {
-			ss_response << json;
-		}
-
-		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
-		http_header += "Content-Type: application/json\r\n";
-		http_status = "404 Not Found";
-
-		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
-			<< " to " << request->remote_endpoint_address << " Message: " << message;
-
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
-	}
 }
 
 void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
@@ -498,7 +424,9 @@ void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::
 		file.open(torrent_file_path + name, std::ofstream::out);
 		file << content;
 		file.close();
+
 		bool success = torrent_manager.add_torrent_async(torrent_file_path + name, download_path);
+
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -513,6 +441,7 @@ void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::
 			document.AddMember("status", "Could not add torrent", allocator);
 			http_status = "http/1.1 400 Bad Request\r\n";
 		}
+
 		rapidjson::StringBuffer string_buffer;
 		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
 		document.Accept(writer);
@@ -521,6 +450,7 @@ void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::
 		*response << http_status
 				<< "Content-Length: " << json.length() << "\r\n\r\n"
 				<< json;
+
 				*/
 	}
 	catch(const std::exception &e) {

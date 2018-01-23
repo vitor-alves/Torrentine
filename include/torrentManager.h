@@ -36,7 +36,6 @@ public:
 	unsigned long int const generate_torrent_id();
 	unsigned long int remove_torrent(const std::vector<unsigned long int> ids, bool remove_data);
 	unsigned long int stop_torrents(const std::vector<unsigned long int> ids, bool force_stop);
-	unsigned long int start_torrents(const std::vector<unsigned long int> ids);
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);
 	bool save_session_state();
 	bool load_session_state();

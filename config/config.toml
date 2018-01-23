@@ -1,4 +1,3 @@
-
 [directory]
 	download_path = "temp/downloads/"
 	fastresume_path = "state/fastresume/"
