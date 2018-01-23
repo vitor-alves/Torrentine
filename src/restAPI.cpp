@@ -68,6 +68,11 @@ void RestAPI::define_resources() {
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_stop(response, request); };
 
+	/* /torrents/<id>/files - GET */
+	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)files$"]["GET"] =
+	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_files_get(response, request); };
+
 	/* /torrents/<id>/recheck - POST */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)recheck$"]["POST"] =
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
@@ -290,6 +295,84 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	}
 }
 
+void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	std::map<std::string, api_parameter> required_parameters = {};
+	std::map<std::string, api_parameter> optional_parameters = {
+		{"piece_granularity",{"piece_granularity","true",api_parameter_format::boolean,{"true","false"}}} };
+	SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
+	std::string invalid_parameter = validate_all_parameters(query, required_parameters, optional_parameters);
+	if(invalid_parameter.length() > 0) { 
+		respond_invalid_parameter(response, request, invalid_parameter);
+		return;
+	}
+
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+	unsigned long int result = torrent_manager.get_files_torrents(ids, str_to_bool(optional_parameters.find("piece_granularity")->second.value));
+	
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_header;
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "An attempt to stop the torrents will be made asynchronously";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+
+		std::string json = stringfy_document(document);	
+		
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "202 Accepted";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+		
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3100, allocator);
+		char const *message = error_codes.find(3100)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+		
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
 void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
@@ -403,11 +486,10 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 }
 
 void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-		// DISABLE ONLY FOR TESTS. REMOVE COMMENTS LATER
-		//if(!validate_authorization(request)) {
-		//	respond_invalid_authorization(response, request);
-		//	return;
-		//}
+		if(!validate_authorization(request)) {
+			respond_invalid_authorization(response, request);
+			return;
+		}
 
 		std::map<std::string, api_parameter> required_parameters = {};
 		std::map<std::string, api_parameter> optional_parameters = {

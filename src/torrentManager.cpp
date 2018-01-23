@@ -235,6 +235,77 @@ unsigned long int TorrentManager::stop_torrents(const std::vector<unsigned long 
 	return 0;
 }
 
+unsigned long int TorrentManager::get_files_torrents(const std::vector<unsigned long int> ids, bool piece_granularity) {
+	torrent_files_info tfi;
+
+	// No ids specified. Get files from all torrents
+	if(ids.size() == 0) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			lt::torrent_handle handle = (*it)->get_handle();
+			std::vector<boost::int64_t> progress;
+			if(piece_granularity) {
+				handle.file_progress(progress, lt::torrent_handle::piece_granularity);
+		       	
+			}	
+			else {
+				handle.file_progress(progress);
+			}
+			//  If the torrent doesn't have metadata, the pointer will not be initialized (i.e. a NULL pointer).
+			boost::shared_ptr<const lt::torrent_info> ti = handle.torrent_file();
+			if(ti) {
+				int num_files = ti->files().num_files();
+				for(int i = 0; i < num_files; i++) {
+					tfi.files_names.push_back(ti->files().file_name(i));	
+				}
+			}
+			else {
+			}
+			tfi.files_progress.push_back(progress);	
+		}
+		return 0;
+	}
+
+	// No ids specified. Stop all torrents
+/*	if(ids.size() == 0) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			lt::torrent_handle handle = (*it)->get_handle();
+			if(force_stop)
+				handle.pause();
+			else
+				handle.pause(lt::torrent_handle::graceful_pause);
+		}
+		return 0;
+	}
+
+	// Check if all torrents in ids that will be stopped in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Stop torrents in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				lt::torrent_handle handle = (*it)->get_handle();
+				if(force_stop)
+					handle.pause();
+				else
+					handle.pause(lt::torrent_handle::graceful_pause);
+			}
+		}
+	}
+
+*/
+	return 0;
+}
+
 // Reminder: It returns the alert but does not pop it from the queue
 lt::alert const* TorrentManager::wait_for_alert(lt::time_duration max_wait) {
 	lt::alert const* a = session.wait_for_alert(max_wait);
