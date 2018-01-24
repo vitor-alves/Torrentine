@@ -296,11 +296,10 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 }
 
 void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	// DISABLED FOR TESTS. ENABLE LATER
-	//if(!validate_authorization(request)) {
-	//	respond_invalid_authorization(response, request);
-	//	return;
-	//}
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
 
 	std::map<std::string, api_parameter> required_parameters = {};
 	std::map<std::string, api_parameter> optional_parameters = {
