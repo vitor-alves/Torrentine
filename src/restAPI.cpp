@@ -325,6 +325,8 @@ void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shar
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == true) {
+		char const *message = "Successfully sent log";
+
 		std::string response_file(&buffer[0]);
 
 		if(accepts_gzip_encoding(request->header)) {
