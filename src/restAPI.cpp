@@ -93,6 +93,11 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->torrents_delete(response, request); };
 
+	/* /logs - GET */
+	server.resource["^/v1.0/logs$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
+		{ this->get_logs(response, request); };
+
 	server.resource["^/v1.0/session/torrents$"]["POST"] =
 	       	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_add(response, request); };
@@ -271,6 +276,80 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		char const *message = error_codes.find(3100)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+		
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
+void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	// TODO - disabled for tests only. enable later.
+	//if(!validate_authorization(request)) {
+	//	respond_invalid_authorization(response, request);
+	//	return;
+	//}
+
+	fs::path log_path;
+	try {
+		log_path = fs::path(config.get_config<std::string>("log.file_path"));
+	}
+	catch(config_key_error const &e) {
+		LOG_ERROR << "Could not get log. Could not get config: " << e.what();
+	}
+
+	std::vector<char> buffer;
+	bool result = file_to_buffer(buffer, log_path.string());
+	
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_header;
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == true) {
+		std::string response_file(&buffer[0]);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(response_file);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << response_file;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: text/plain\r\n";
+		http_header += "Content-Disposition: inline; filename=bitsleek-log.txt\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+		
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3150, allocator);
+		char const *message = error_codes.find(3150)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
 		
