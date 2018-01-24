@@ -73,6 +73,11 @@ void RestAPI::define_resources() {
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_files_get(response, request); };
 
+	/* /torrents/<id>/peers - GET */
+	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)peers$"]["GET"] =
+	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_peers_get(response, request); };
+
 	/* /torrents/<id>/recheck - POST */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)recheck$"]["POST"] =
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
@@ -352,6 +357,105 @@ void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shar
 		e.AddMember("code", 3150, allocator);
 		char const *message = error_codes.find(3150)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+		
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
+void RestAPI::torrents_peers_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	// TODO - Disabled for tests. Enable later
+	//if(!validate_authorization(request)) {
+	//	respond_invalid_authorization(response, request);
+	//	return;
+	//}
+
+	std::vector<std::vector<Torrent::torrent_peer>> requested_torrent_peers;
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+	if(ids.size() == 0) // If no ids were specified, consider all ids
+		ids = torrent_manager.get_all_ids(); 
+	unsigned long int result = torrent_manager.get_peers_torrents(requested_torrent_peers, ids);
+	
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_header;
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "Succesfuly retrieved torrent peers";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		rapidjson::Value torrents(rapidjson::kArrayType);
+		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
+		for(std::vector<Torrent::torrent_peer> torrent_peers : requested_torrent_peers) {
+			rapidjson::Value t(rapidjson::kObjectType);
+			t.AddMember("id", *it_ids, allocator);
+			it_ids++;
+			rapidjson::Value peers(rapidjson::kArrayType);
+			for(Torrent::torrent_peer tp : torrent_peers) {
+				rapidjson::Value f(rapidjson::kObjectType);
+				rapidjson::Value client;
+				client.SetString(tp.client.c_str(), tp.client.size(), allocator);
+				rapidjson::Value address;
+				address.SetString(tp.ip.address().to_string().c_str(), tp.ip.address().to_string().size(), allocator);
+				f.AddMember("ip", address, allocator);
+				f.AddMember("port", tp.ip.port(), allocator);
+				f.AddMember("client", client, allocator);
+				f.AddMember("down_speed", tp.down_speed, allocator);
+				f.AddMember("up_speed", tp.up_speed, allocator);
+				f.AddMember("down_total", tp.down_total, allocator);
+				f.AddMember("up_total", tp.up_total, allocator);
+				f.AddMember("progress", tp.progress, allocator);
+				peers.PushBack(f, allocator);
+			}
+			t.AddMember("peers", peers, allocator);
+			torrents.PushBack(t, allocator);
+		}
+		document.AddMember("torrents", torrents, allocator);
+
+		std::string json = stringfy_document(document);	
+		
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+		
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3160, allocator);
+		char const *message = error_codes.find(3160)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
 		

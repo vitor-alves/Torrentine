@@ -47,7 +47,8 @@ private:
 								{3120, "could not start torrent"},
 								{3130, "could not recheck torrent"},
 								{3140, "could not get torrent files"},
-								{3150, "could not get log"}};
+								{3150, "could not get log"},
+								{3160, "could not get peers"}};
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> const request);
 	std::string stringfy_document(rapidjson::Document const &document, bool const pretty=true);
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request,
@@ -68,6 +69,7 @@ public:
 	void stop_server();
 	void torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 	void torrents_files_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
+	void torrents_peers_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_recheck(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 	void torrents_start(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 	void torrents_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);

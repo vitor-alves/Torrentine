@@ -110,14 +110,14 @@ void parse_arguments(int const argc, char const* argv[], fs::path &config_file) 
 bool initialize_log(ConfigManager &config) {		
 	fs::path log_file_path = "./";
 	size_t log_max_size = 5*1024*1024; // 5MB
-	int log_max_files = 3;	
+	int log_max_files = 1; // Currently only 1 log file. Changing this will require changes in the API to get logs.
+				// This adds unnecessary complexity.
 	plog::Severity log_severity = plog::Severity::debug;
 		
 	try {
 		std::stringstream sstream;
 		log_file_path = fs::path(config.get_config<std::string>("log.file_path"));
 		log_max_size = config.get_config<size_t>("log.max_size");
-		log_max_files = config.get_config<int>("log.max_files");
 		std::unordered_map<std::string, plog::Severity>::iterator it_log_severity =
 		       	map_log_severity.find(config.get_config<std::string>("log.severity"));
 		if(it_log_severity != map_log_severity.end())
