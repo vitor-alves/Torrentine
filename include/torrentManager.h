@@ -37,6 +37,7 @@ public:
 	unsigned long int const generate_torrent_id();
 	unsigned long int remove_torrent(const std::vector<unsigned long int> ids, bool remove_data);
 	unsigned long int stop_torrents(const std::vector<unsigned long int> ids, bool force_stop);
+	std::vector<unsigned long int> get_all_ids();
 	unsigned long int get_files_torrents(std::vector<std::vector<Torrent::torrent_file>> &torrent_files, const std::vector<unsigned long int> ids, bool piece_granularity);
 	unsigned long int recheck_torrents(const std::vector<unsigned long int> ids);
 	unsigned long int start_torrents(const std::vector<unsigned long int> ids);	

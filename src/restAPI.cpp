@@ -314,6 +314,8 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 
 	std::vector<std::vector<Torrent::torrent_file>> requested_torrent_files;
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+	if(ids.size() == 0) // If no ids were specified, consider all ids
+		ids = torrent_manager.get_all_ids(); // TODO - use this same approach in all other API calls and reduce the redundant code in the action methods. This way we do not need to treat ids empty differently than ids non empty in the action method, cuz its always non empty (if torrents exist). 
 	unsigned long int result = torrent_manager.get_files_torrents(requested_torrent_files, ids, str_to_bool(optional_parameters.find("piece_granularity")->second.value));
 	
 	rapidjson::Document document;
@@ -323,22 +325,31 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
-		char const *message = "Succesfuly retrieved files";
+		char const *message = "Succesfuly retrieved torrent files";
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
 		rapidjson::Value torrents(rapidjson::kArrayType);
-		unsigned long int i = 0;
+		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
 		for(std::vector<Torrent::torrent_file> torrent_files : requested_torrent_files) {
 			rapidjson::Value t(rapidjson::kObjectType);
-			t.AddMember("id", 0, allocator); // TODO - need to get id here somehow. cannot use ids because when ids.size() == 0 we have problems. Maybe torrent_file should store the torrent id ? ugly.
+			t.AddMember("id", *it_ids, allocator);
+			it_ids++;
 			rapidjson::Value files(rapidjson::kArrayType);
 			for(Torrent::torrent_file tf : torrent_files) {
 				rapidjson::Value f(rapidjson::kObjectType);
 				rapidjson::Value name;
 				name.SetString(tf.name.c_str(), tf.name.size(), allocator);
+				// TODO - this works, but I do not know if this is sufficient to implement the UI file tree view in JS easily.
+				// Maybe I will need to tweak this later. Deluge also sends a field "type" that specifies if its a dir or a file.
+				// Not sure if I need that, but keep that in mind.	
+				f.AddMember("index", tf.index, allocator);
 				f.AddMember("name", name, allocator);
-				f.AddMember("progress", tf.progress, allocator);
+				f.AddMember("progress", double(tf.progress)/double(tf.size), allocator);
+				f.AddMember("downloaded_total", tf.progress, allocator);
 				f.AddMember("size", tf.size, allocator);
 				f.AddMember("priority", tf.priority, allocator);
+				rapidjson::Value path;
+				path.SetString(tf.path.c_str(), tf.path.size(), allocator);
+				f.AddMember("path", path, allocator);
 				files.PushBack(f, allocator);
 			}
 			t.AddMember("files", files, allocator);
@@ -357,7 +368,7 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 		}
 		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
 		http_header += "Content-Type: application/json\r\n";
-		http_status = "202 Accepted";
+		http_status = "200 OK";
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
@@ -367,8 +378,8 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 	else {
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 3100, allocator);
-		char const *message = error_codes.find(3100)->second.c_str();
+		e.AddMember("code", 3140, allocator);
+		char const *message = error_codes.find(3140)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);

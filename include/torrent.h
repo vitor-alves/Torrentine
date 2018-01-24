@@ -8,10 +8,12 @@ namespace lt = libtorrent;
 class Torrent {
 public:
 	struct torrent_file {
+		int index;
 		std::string name;
 		boost::int64_t progress;
 		boost::int64_t size;
 		int priority;
+		std::string path;
 	};
 	
 private:

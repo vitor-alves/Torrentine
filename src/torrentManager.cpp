@@ -235,17 +235,38 @@ unsigned long int TorrentManager::stop_torrents(const std::vector<unsigned long 
 	return 0;
 }
 
+std::vector<unsigned long int> TorrentManager::get_all_ids() {
+	std::vector<unsigned long int> ids;
+	for(std::shared_ptr<Torrent> t : torrents) {
+		ids.push_back(t->get_id());
+	}
+	return ids;
+}
+
 unsigned long int TorrentManager::get_files_torrents(std::vector<std::vector<Torrent::torrent_file>> &torrent_files, const std::vector<unsigned long int> ids, bool piece_granularity) {
 
-	// No ids specified. Get files from all torrents
-	if(ids.size() == 0) {
+	// TODO - put this check in a function and use it in all other API methods to reduce redundancy
+	// Check if all torrents in ids that will be stopped in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
 		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
-			std::vector<Torrent::torrent_file> tf = (*it)->get_torrent_files(piece_granularity);
-			torrent_files.push_back(tf);
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Get files from torrents in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				std::vector<Torrent::torrent_file> tf = (*it)->get_torrent_files(piece_granularity);
+				torrent_files.push_back(tf);
+			}
 		}
 	}
-	
-	// TODO - UNFINISHED	
 
 	return 0;
 }

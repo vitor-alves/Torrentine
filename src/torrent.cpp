@@ -33,10 +33,12 @@ std::vector<Torrent::torrent_file> Torrent::get_torrent_files(bool const piece_g
 
 		for(int i = 0; i < ti->num_files(); i++) {
 			Torrent::torrent_file tf;
+			tf.index = i; 
 			tf.progress = progress.at(i);	
 			tf.priority = priorities.at(i);
 			tf.name = ti->files().file_name(i);
 			tf.size = ti->files().file_size(i);
+			tf.path = ti->files().file_path(i);
 			torrent_files.push_back(tf);
 		}
 	}
