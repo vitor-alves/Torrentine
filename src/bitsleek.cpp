@@ -145,5 +145,6 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 	}
 	bool success_t1 = torrent_manager.add_torrent_async("test/sample_torrents/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
 	bool success_t2 = torrent_manager.add_torrent_async("test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
+	bool success_t3 = torrent_manager.add_torrent_async("test/sample_torrents/Royalty.Free.Background.Music.Pack.torrent", download_path);
 	LOG_DEBUG << "Added test torrents";
 }

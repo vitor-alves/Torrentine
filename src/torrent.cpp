@@ -1,4 +1,6 @@
 #include "torrent.h"
+#include <libtorrent/torrent_info.hpp>
+#include "plog/Log.h"
 
 void Torrent::set_handle(lt::torrent_handle handle) {
 	this->handle = handle;
@@ -13,6 +15,33 @@ Torrent::Torrent(unsigned long int const id) : id(id) {
 
 unsigned long int const Torrent::get_id() {
 	return id;
+}
+
+std::vector<Torrent::torrent_file> Torrent::get_torrent_files(bool const piece_granularity) {
+	std::vector<Torrent::torrent_file> torrent_files;
+	
+	
+	//  If the torrent doesn't have metadata, the pointer will not be initialized (i.e. a NULL pointer).
+	boost::shared_ptr<const lt::torrent_info> ti = handle.torrent_file();
+	if(ti) {
+		std::vector<boost::int64_t> progress;
+		if(piece_granularity)
+			handle.file_progress(progress, lt::torrent_handle::piece_granularity);	
+		else
+			handle.file_progress(progress);
+		std::vector<int> priorities = handle.file_priorities();
+
+		for(int i = 0; i < ti->num_files(); i++) {
+			Torrent::torrent_file tf;
+			tf.progress = progress.at(i);	
+			tf.priority = priorities.at(i);
+			tf.name = ti->files().file_name(i);
+			tf.size = ti->files().file_size(i);
+			torrent_files.push_back(tf);
+		}
+	}
+
+	return torrent_files;
 }
 
 Torrent::~Torrent() {

@@ -312,8 +312,9 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 		return;
 	}
 
+	std::vector<std::vector<Torrent::torrent_file>> requested_torrent_files;
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
-	unsigned long int result = torrent_manager.get_files_torrents(ids, str_to_bool(optional_parameters.find("piece_granularity")->second.value));
+	unsigned long int result = torrent_manager.get_files_torrents(requested_torrent_files, ids, str_to_bool(optional_parameters.find("piece_granularity")->second.value));
 	
 	rapidjson::Document document;
 	document.SetObject();
@@ -322,8 +323,28 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
-		char const *message = "An attempt to stop the torrents will be made asynchronously";
+		char const *message = "Succesfuly retrieved files";
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		rapidjson::Value torrents(rapidjson::kArrayType);
+		unsigned long int i = 0;
+		for(std::vector<Torrent::torrent_file> torrent_files : requested_torrent_files) {
+			rapidjson::Value t(rapidjson::kObjectType);
+			t.AddMember("id", 0, allocator); // TODO - need to get id here somehow. cannot use ids because when ids.size() == 0 we have problems. Maybe torrent_file should store the torrent id ? ugly.
+			rapidjson::Value files(rapidjson::kArrayType);
+			for(Torrent::torrent_file tf : torrent_files) {
+				rapidjson::Value f(rapidjson::kObjectType);
+				rapidjson::Value name;
+				name.SetString(tf.name.c_str(), tf.name.size(), allocator);
+				f.AddMember("name", name, allocator);
+				f.AddMember("progress", tf.progress, allocator);
+				f.AddMember("size", tf.size, allocator);
+				f.AddMember("priority", tf.priority, allocator);
+				files.PushBack(f, allocator);
+			}
+			t.AddMember("files", files, allocator);
+			torrents.PushBack(t, allocator);
+		}
+		document.AddMember("torrents", torrents, allocator);
 
 		std::string json = stringfy_document(document);	
 		
