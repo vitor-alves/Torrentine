@@ -88,10 +88,10 @@ void RestAPI::define_resources() {
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_start(response, request); };
 
-	/* /session/torrents/<id> - GET */
-	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["GET"] =
+	/* /session/torrents/<id>/status - GET */
+	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)status$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->torrents_get(response, request); };
+		{ this->torrents_status_get(response, request); };
 
 	/* /session/torrents/<id> - DELETE */
 	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["DELETE"] =
@@ -658,7 +658,7 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 	}
 }
 
-void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	try {	
 		const std::vector<std::shared_ptr<Torrent>> torrents = torrent_manager.get_torrents();
 		rapidjson::Document document;
