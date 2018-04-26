@@ -48,7 +48,8 @@ private:
 								{3130, "could not recheck torrent"},
 								{3140, "could not get torrent files"},
 								{3150, "could not get log"},
-								{3160, "could not get peers"}};
+								{3160, "could not get peers"},
+								{3170, "could not get status"}};
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> const request);
 	std::string stringfy_document(rapidjson::Document const &document, bool const pretty=true);
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request,

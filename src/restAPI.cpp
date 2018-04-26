@@ -659,46 +659,110 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 }
 
 void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	try {	
-		const std::vector<std::shared_ptr<Torrent>> torrents = torrent_manager.get_torrents();
-		rapidjson::Document document;
-		document.SetObject();
-		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		for(std::shared_ptr<Torrent> torrent : torrents) {
-			lt::torrent_status status = torrent->get_handle().status();	
-			rapidjson::Value object(rapidjson::kObjectType);
+	// TODO - Disabled for tests. Enable later
+	//if(!validate_authorization(request)) {
+	//	respond_invalid_authorization(response, request);
+	//	return;
+	//}
+
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+	// TODO - Inefficient. When ids.size() = 0 should be treated inside the calls, not here.
+	if(ids.size() == 0) // If no ids were specified, consider all ids
+		ids = torrent_manager.get_all_ids(); 
+	std::vector<lt::torrent_status> torrents_status;
+	unsigned long int result = torrent_manager.get_torrents_status(torrents_status, ids);
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_header;
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "Succesfuly retrieved torrent status";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		rapidjson::Value torrents(rapidjson::kArrayType);
+		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
+		for(lt::torrent_status status : torrents_status) {
+			lt::torrent_handle handle = status.handle;
+			rapidjson::Value t(rapidjson::kObjectType);
+			t.AddMember("id", *it_ids, allocator);
+			it_ids++;
+			rapidjson::Value s(rapidjson::kObjectType);
 			rapidjson::Value temp_value;
-			
 			temp_value.SetString(status.name.c_str(), status.name.length(), allocator);
-			object.AddMember("name", temp_value, allocator); 
-			object.AddMember("down_rate", status.download_rate, allocator); 
-			object.AddMember("up_rate", status.upload_rate, allocator); 
-			object.AddMember("progress", status.progress, allocator); 
-			object.AddMember("down_total", status.total_download, allocator); 
-			object.AddMember("up_total", status.total_upload, allocator); 
-			object.AddMember("seeds", status.num_seeds, allocator); 
-			object.AddMember("peers", status.num_peers, allocator);
+			s.AddMember("name", temp_value, allocator);
+			s.AddMember("down_rate", status.download_rate, allocator);
+			s.AddMember("down_limit", handle.download_limit(), allocator);
+			s.AddMember("down_rate", status.download_rate, allocator);
+			s.AddMember("up_rate", status.upload_rate, allocator); 
+			s.AddMember("up_limit", handle.upload_limit(), allocator);
+			s.AddMember("progress", status.progress, allocator); 
+			s.AddMember("down_total", status.total_download, allocator);
+			s.AddMember("up_total", status.total_upload, allocator); 
+			s.AddMember("seeds", status.num_seeds, allocator);
+			temp_value.SetString(status.save_path.c_str(), status.save_path.length(), allocator);
+			s.AddMember("save_path", temp_value, allocator);
+			
+			s.AddMember("peers", status.num_peers, allocator);
 			/* info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
 			   the returned value is undefined. */
 			std::stringstream ss_info_hash;
 			ss_info_hash << status.info_hash;
 			std::string info_hash = ss_info_hash.str();
 			temp_value.SetString(info_hash.c_str(), info_hash.length(), allocator);
-			document.AddMember(temp_value, object, allocator);
+			s.AddMember("info_hash", temp_value, allocator);	
+			t.AddMember("status", s, allocator);
+			torrents.PushBack(t, allocator);
+		}
+		document.AddMember("torrents", torrents, allocator);
+
+		std::string json = stringfy_document(document);	
+		
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+		
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3170, allocator);
+		char const *message = error_codes.find(3170)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+		
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
 		}
 
-		rapidjson::StringBuffer string_buffer;
-		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
-		document.Accept(writer);
-		std::string json = string_buffer.GetString();
-	
-		*response << "HTTP/1.1 200 OK\r\nContent-Length: " << json.length() << "\r\n\r\n"
-				<< json;		
-	}
-	catch(const std::exception &e) {
-		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
-					<< e.what();
-		LOG_DEBUG << "HTTP Bad Request: " << e.what();
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 }
 
