@@ -658,6 +658,10 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 	}
 }
 
+// TODO - add a "ratio" field also in the json
+// TODO - some improvements are needed to make the json fields more readable.
+// 	- tests needed to check if everything is working fine.
+// 	TODO - lt::error_code errc, error_file, error_file_exception etc curently not used. Use this to inform the user of possible errors in the torrent. All other variables are used, except the ones regarding to errors. No errors are treated at the moment.
 void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	// TODO - Disabled for tests. Enable later
 	//if(!validate_authorization(request)) {
@@ -692,19 +696,73 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 			rapidjson::Value temp_value;
 			temp_value.SetString(status.name.c_str(), status.name.length(), allocator);
 			s.AddMember("name", temp_value, allocator);
-			s.AddMember("down_rate", status.download_rate, allocator);
-			s.AddMember("down_limit", handle.download_limit(), allocator);
-			s.AddMember("down_rate", status.download_rate, allocator);
-			s.AddMember("up_rate", status.upload_rate, allocator); 
-			s.AddMember("up_limit", handle.upload_limit(), allocator);
+			s.AddMember("download_rate", status.download_rate, allocator);
+			s.AddMember("download_limit", handle.download_limit(), allocator);
+			s.AddMember("upload_rate", status.upload_rate, allocator); 
+			s.AddMember("upload_limit", handle.upload_limit(), allocator);
 			s.AddMember("progress", status.progress, allocator); 
-			s.AddMember("down_total", status.total_download, allocator);
-			s.AddMember("up_total", status.total_upload, allocator); 
-			s.AddMember("seeds", status.num_seeds, allocator);
+			s.AddMember("total_download", status.total_download, allocator);
+			s.AddMember("total_payload_download", status.total_payload_download, allocator);
+			s.AddMember("download_payload_rate", status.download_payload_rate, allocator);
+			s.AddMember("total_payload_upload", status.total_payload_upload, allocator);
+			s.AddMember("upload_payload_rate", status.upload_payload_rate, allocator);
+			s.AddMember("total_failed_bytes", status.total_failed_bytes, allocator);
+			s.AddMember("total_redundant_bytes", status.total_redundant_bytes, allocator);
+			s.AddMember("total_done", status.total_done, allocator);
+			s.AddMember("total_upload", status.total_upload, allocator); 
+			s.AddMember("num_seeds", status.num_seeds, allocator);
 			temp_value.SetString(status.save_path.c_str(), status.save_path.length(), allocator);
 			s.AddMember("save_path", temp_value, allocator);
-			
-			s.AddMember("peers", status.num_peers, allocator);
+			s.AddMember("next_announce", lt::duration_cast<lt::milliseconds>(status.next_announce).count(), allocator);
+			temp_value.SetString(status.current_tracker.c_str(), status.current_tracker.length(), allocator);
+			s.AddMember("current_tracker", temp_value, allocator);
+			s.AddMember("num_peers", status.num_peers, allocator);
+			s.AddMember("total_wanted_done", status.total_wanted_done, allocator);
+			s.AddMember("total_wanted", status.total_wanted, allocator);
+			s.AddMember("all_time_upload", status.all_time_upload, allocator);
+			s.AddMember("all_time_download", status.all_time_download, allocator);
+			s.AddMember("added_time", status.added_time, allocator);
+			s.AddMember("completed_time", status.completed_time, allocator);
+			s.AddMember("last_seen_complete", status.last_seen_complete, allocator);
+			s.AddMember("storage_mode", status.storage_mode, allocator);
+			s.AddMember("progress_ppm", status.progress_ppm, allocator);
+			s.AddMember("queue_position", status.queue_position, allocator);
+			s.AddMember("num_complete", status.num_complete, allocator);
+			s.AddMember("num_incomplete", status.num_incomplete, allocator);
+			s.AddMember("list_seeds", status.list_seeds, allocator);
+			s.AddMember("list_peers", status.list_peers, allocator);
+			s.AddMember("connect_candidates", status.connect_candidates, allocator);
+			s.AddMember("num_pieces", status.num_pieces, allocator);
+			s.AddMember("distributed_full_copies", status.distributed_full_copies, allocator);
+			s.AddMember("distributed_fraction", status.distributed_fraction, allocator);
+			s.AddMember("distributed_copies", status.distributed_copies, allocator);
+			s.AddMember("block_size", status.block_size, allocator);
+			s.AddMember("num_uploads", status.num_uploads, allocator);
+			s.AddMember("num_connections", status.num_connections, allocator);
+			s.AddMember("uploads_limit", status.uploads_limit, allocator);
+			s.AddMember("connections_limit", status.connections_limit, allocator);
+			s.AddMember("up_bandwidth_queue", status.up_bandwidth_queue, allocator);
+			s.AddMember("down_bandwidth_queue", status.down_bandwidth_queue, allocator); 
+			s.AddMember("seed_rank", status.seed_rank, allocator); 
+			s.AddMember("checking_resume_data", status.checking_resume_data, allocator); 
+			s.AddMember("need_save_resume", status.need_save_resume, allocator); 
+			s.AddMember("is_seeding", status.is_seeding, allocator); 
+			s.AddMember("is_finished", status.is_finished, allocator); 
+			s.AddMember("has_metadata", status.has_metadata, allocator); 
+			s.AddMember("has_incoming", status.has_incoming, allocator); 
+			s.AddMember("moving_storage", status.moving_storage, allocator); 
+			s.AddMember("announcing_to_trackers", status.announcing_to_trackers, allocator); 
+			s.AddMember("announcing_to_lsd", status.announcing_to_lsd, allocator); 
+			s.AddMember("announcing_to_dht", status.announcing_to_dht, allocator);
+			// TODO - deprecated in 1.2
+			// use last_upload, last_download or
+			// seeding_duration, finished_duration and active_duration
+			// instead
+			s.AddMember("time_since_upload", status.time_since_upload, allocator);  // TODO
+			s.AddMember("time_since_download", status.time_since_download, allocator); 
+			s.AddMember("active_time", status.active_time, allocator); 
+			s.AddMember("finished_time", status.finished_time, allocator); 
+			s.AddMember("seeding_time", status.seeding_time, allocator); 
 			/* info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
 			   the returned value is undefined. */
 			std::stringstream ss_info_hash;

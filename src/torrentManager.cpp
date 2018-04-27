@@ -120,12 +120,13 @@ void TorrentManager::check_alerts(lt::alert *a) {
 	}	
 }
 
+// TODO - function name in incorrect format
 unsigned long int TorrentManager::get_torrents_status(std::vector<lt::torrent_status> &torrents_status, std::vector<unsigned long int> ids) {
 
 	// No ids specified. Get all torrents status
 	if(ids.size() == 0) {
 		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
-			torrents_status.push_back((*it)->get_handle().status());
+			torrents_status.push_back((*it)->get_handle().status()); // TODO - create get torrent status function
 		}
 		return 0;
 	}
