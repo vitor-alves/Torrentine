@@ -1,18 +1,18 @@
+[directory]
+	download_path = "temp/downloads/"
+	fastresume_path = "state/fastresume/"
+	session_state_path = "state/session.state"
+	torrent_file_path = "state/torrents/"
+	database_path = "state/database/bitsleek.db"
 [libtorrent]
 	[libtorrent.extensions]
+		ut_pex_plugin = "enabled"
 		smart_ban_plugin = "enabled"
 		ut_metadata_plugin = "enabled"
-		ut_pex_plugin = "enabled"
-[directory]
-	fastresume_path = "state/fastresume/"
-	download_path = "temp/downloads/"
-	session_state_path = "state/session.state"
-	database_path = "state/database/bitsleek.db"
-	torrent_file_path = "state/torrents/"
+[api]
+	port = 8040
+	address = "0.0.0.0"
 [log]
 	severity = "debug"
 	max_size = 5242880
 	file_path = "log/bitsleek-log.txt"
-[api]
-	port = 8040
-	address = "0.0.0.0"

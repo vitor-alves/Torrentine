@@ -47,6 +47,7 @@ std::vector<Torrent::torrent_file> Torrent::get_torrent_files(bool const piece_g
 	return torrent_files;
 }
 
+// TODO - the struct Torrent::torrent_peer is useless. Substitute it for libtorrent::torrent_peer. Use it instead. 
 std::vector<Torrent::torrent_peer> Torrent::get_torrent_peers() {
 	std::vector<Torrent::torrent_peer> torrent_peers;
 	
@@ -75,4 +76,11 @@ std::vector<Torrent::torrent_peer> Torrent::get_torrent_peers() {
 }
 
 Torrent::~Torrent() {
+}
+
+lt::torrent_status Torrent::get_torrent_status() {
+	
+	lt::torrent_status status = handle.status();
+
+	return status;
 }

@@ -480,6 +480,7 @@ void RestAPI::torrents_peers_get(std::shared_ptr<HttpServer::Response> response,
 	}
 }
 
+
 void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
@@ -511,7 +512,7 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 	if(result == 0) {
 		char const *message = "Succesfuly retrieved torrent files";
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
-		rapidjson::Value torrents(rapidjson::kArrayType);
+		rapidjson::Value torrents(rapidjson::kArrayType); // TODO - Torrents should probably be an Object and not an Array. This way it would be easier to access them directly in javascript. Like json['torrents']['id']. Change this array to object in all API calls.
 		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
 		for(std::vector<Torrent::torrent_file> torrent_files : requested_torrent_files) {
 			rapidjson::Value t(rapidjson::kObjectType);
@@ -659,13 +660,160 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 }
 
 void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	try {	
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+	std::vector<lt::torrent_status> torrent_status;
+	if(ids.size() == 0) // If no ids were specified, consider all ids
+		ids = torrent_manager.get_all_ids(); 
+	unsigned long int result = torrent_manager.get_status_torrents(torrent_status, ids);
+	
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_header;
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "Succesfuly retrieved torrents";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		rapidjson::Value torrents(rapidjson::kArrayType);
+		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
+		for(lt::torrent_status status : torrent_status) {
+			rapidjson::Value t(rapidjson::kObjectType);
+			t.AddMember("id", *it_ids, allocator);
+			it_ids++;
+			rapidjson::Value peers(rapidjson::kArrayType);
+			for(Torrent::torrent_peer tp : torrent_peers) {
+				rapidjson::Value f(rapidjson::kObjectType);
+				rapidjson::Value client;
+				client.SetString(tp.client.c_str(), tp.client.size(), allocator);
+				rapidjson::Value address;
+				address.SetString(tp.ip.address().to_string().c_str(), tp.ip.address().to_string().size(), allocator);
+				f.AddMember("ip", address, allocator);
+				f.AddMember("port", tp.ip.port(), allocator);
+				f.AddMember("client", client, allocator);
+				f.AddMember("down_speed", tp.down_speed, allocator);
+				f.AddMember("up_speed", tp.up_speed, allocator);
+				f.AddMember("down_total", tp.down_total, allocator);
+				f.AddMember("up_total", tp.up_total, allocator);
+				f.AddMember("progress", tp.progress, allocator);
+				peers.PushBack(f, allocator);
+			}
+			t.AddMember("peers", peers, allocator);
+			torrents.PushBack(t, allocator);
+		}
+		document.AddMember("torrents", torrents, allocator);
+
+		std::string json = stringfy_document(document);	
+		
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+		
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	
+		/*char const *message = "Succesfuly retrieved torrents";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
+		for(lt::torrent_status status : torrent_status) {
+			rapidjson::Value object(rapidjson::kObjectType);
+			//rapidjson::Value temp_value;
+		
+			rapidjson::Value t(rapidjson::kObjectType);
+			t.AddMember("id", *it_ids, allocator);
+
+			//temp_value.SetString(status.name.c_str(), status.name.length(), allocator);
+			object.AddMember("name", temp_value, allocator); 
+			object.AddMember("down_rate", status.download_rate, allocator); 
+			object.AddMember("up_rate", status.upload_rate, allocator); 
+			object.AddMember("progress", status.progress, allocator); 
+			object.AddMember("down_total", status.total_download, allocator); 
+			object.AddMember("up_total", status.total_upload, allocator); 
+			object.AddMember("seeds", status.num_seeds, allocator); 
+			object.AddMember("peers", status.num_peers, allocator);
+			// info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
+			//   the returned value is undefined.
+			std::stringstream ss_info_hash;
+			ss_info_hash << status.info_hash;
+			std::string info_hash = ss_info_hash.str();
+			//temp_value.SetString(info_hash.c_str(), info_hash.length(), allocator);
+			t.AddMember("torrents", object, allocator);
+			document.AddMember("a", t, allocator);
+		}
+
+
+		std::string json = stringfy_document(document);	
+		
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "202 Accepted";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+		
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	*/
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3100, allocator);
+		char const *message = error_codes.find(3100)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+		
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	
+	
+	/* try {	
 		const std::vector<std::shared_ptr<Torrent>> torrents = torrent_manager.get_torrents();
 		rapidjson::Document document;
 		document.SetObject();
 		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 		for(std::shared_ptr<Torrent> torrent : torrents) {
-			lt::torrent_status status = torrent->get_handle().status();	
+			lt::torrent_status status = torrent->get_handle().status();
+
 			rapidjson::Value object(rapidjson::kObjectType);
 			rapidjson::Value temp_value;
 			
@@ -678,8 +826,8 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 			object.AddMember("up_total", status.total_upload, allocator); 
 			object.AddMember("seeds", status.num_seeds, allocator); 
 			object.AddMember("peers", status.num_peers, allocator);
-			/* info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
-			   the returned value is undefined. */
+			// info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
+			//   the returned value is undefined.
 			std::stringstream ss_info_hash;
 			ss_info_hash << status.info_hash;
 			std::string info_hash = ss_info_hash.str();
@@ -699,7 +847,7 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
 					<< e.what();
 		LOG_DEBUG << "HTTP Bad Request: " << e.what();
-	}
+	} */
 }
 
 void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {

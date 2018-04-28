@@ -1,5 +1,6 @@
 #include <libtorrent/torrent_handle.hpp>
 #include <boost/asio/ip/address.hpp>
+#include <libtorrent/torrent_status.hpp>
 
 #ifndef TORRENT_H
 #define TORRENT_H
@@ -41,6 +42,7 @@ public:
 	~Torrent();
 	std::vector<Torrent::torrent_file> get_torrent_files(bool const piece_granularity);
 	std::vector<Torrent::torrent_peer> get_torrent_peers();
+	lt::torrent_status get_torrent_status();
 };
 
 #endif
