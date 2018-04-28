@@ -120,8 +120,42 @@ void TorrentManager::check_alerts(lt::alert *a) {
 	}	
 }
 
-std::vector<std::shared_ptr<Torrent>> const & TorrentManager::get_torrents() {
-	return torrents;
+// TODO - function name in incorrect format
+unsigned long int TorrentManager::get_torrents_status(std::vector<lt::torrent_status> &torrents_status, std::vector<unsigned long int> ids) {
+
+	// No ids specified. Get all torrents status
+	if(ids.size() == 0) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			torrents_status.push_back((*it)->get_handle().status()); // TODO - create get torrent status function
+		}
+		return 0;
+	}
+
+	// TODO - This in O(n) and not necessary. Embbed this in the for loop below that adds the items to the vector. When not found, return the id.
+	// Check if it exists on the fly 
+	// Check if all torrents in ids in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Get torrent status in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				torrents_status.push_back((*it)->get_handle().status());
+			}
+		}
+	}
+
+
+	return 0;
 }
 
 unsigned long int const TorrentManager::generate_torrent_id() {

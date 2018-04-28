@@ -33,7 +33,7 @@ public:
 	bool add_torrent_async(const std::string filename,const std::string save_path);
 	void check_alerts(lt::alert *a = NULL);
 	void update_torrent_console_view();
-	std::vector<std::shared_ptr<Torrent>> const & get_torrents();
+	unsigned long int get_torrents_status(std::vector<lt::torrent_status> &torrents_status, std::vector<unsigned long int> ids);
 	unsigned long int const generate_torrent_id();
 	unsigned long int remove_torrent(const std::vector<unsigned long int> ids, bool remove_data);
 	unsigned long int stop_torrents(const std::vector<unsigned long int> ids, bool force_stop);

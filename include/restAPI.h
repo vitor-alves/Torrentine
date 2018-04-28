@@ -48,7 +48,8 @@ private:
 								{3130, "could not recheck torrent"},
 								{3140, "could not get torrent files"},
 								{3150, "could not get log"},
-								{3160, "could not get peers"}};
+								{3160, "could not get peers"},
+								{3170, "could not get status"}};
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> const request);
 	std::string stringfy_document(rapidjson::Document const &document, bool const pretty=true);
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request,
@@ -72,7 +73,7 @@ public:
 	void torrents_peers_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_recheck(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 	void torrents_start(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
-	void torrents_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void torrents_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void webUI_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);

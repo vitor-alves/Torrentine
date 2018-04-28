@@ -88,10 +88,10 @@ void RestAPI::define_resources() {
 	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_start(response, request); };
 
-	/* /session/torrents/<id> - GET */
-	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["GET"] =
+	/* /session/torrents/<id>/status - GET */
+	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)status$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->torrents_get(response, request); };
+		{ this->torrents_status_get(response, request); };
 
 	/* /session/torrents/<id> - DELETE */
 	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["DELETE"] =
@@ -480,7 +480,6 @@ void RestAPI::torrents_peers_get(std::shared_ptr<HttpServer::Response> response,
 	}
 }
 
-
 void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
@@ -512,7 +511,7 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 	if(result == 0) {
 		char const *message = "Succesfuly retrieved torrent files";
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
-		rapidjson::Value torrents(rapidjson::kArrayType); // TODO - Torrents should probably be an Object and not an Array. This way it would be easier to access them directly in javascript. Like json['torrents']['id']. Change this array to object in all API calls.
+		rapidjson::Value torrents(rapidjson::kArrayType);
 		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
 		for(std::vector<Torrent::torrent_file> torrent_files : requested_torrent_files) {
 			rapidjson::Value t(rapidjson::kObjectType);
@@ -659,18 +658,24 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 	}
 }
 
-void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	if(!validate_authorization(request)) {
-		respond_invalid_authorization(response, request);
-		return;
-	}
+// TODO - add a "ratio" field also in the json
+// TODO - some improvements are needed to make the json fields more readable.
+// 	- tests needed to check if everything is working fine.
+// 	TODO - lt::error_code errc, error_file, error_file_exception etc curently not used. Use this to inform the user of possible errors in the torrent. All other variables are used, except the ones regarding to errors. No errors are treated at the moment.
+void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	// TODO - Disabled for tests. Enable later
+	//if(!validate_authorization(request)) {
+	//	respond_invalid_authorization(response, request);
+	//	return;
+	//}
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
-	std::vector<lt::torrent_status> torrent_status;
+	// TODO - Inefficient. When ids.size() = 0 should be treated inside the calls, not here.
 	if(ids.size() == 0) // If no ids were specified, consider all ids
 		ids = torrent_manager.get_all_ids(); 
-	unsigned long int result = torrent_manager.get_status_torrents(torrent_status, ids);
-	
+	std::vector<lt::torrent_status> torrents_status;
+	unsigned long int result = torrent_manager.get_torrents_status(torrents_status, ids);
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -678,32 +683,94 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
-		char const *message = "Succesfuly retrieved torrents";
+		char const *message = "Succesfuly retrieved torrent status";
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
 		rapidjson::Value torrents(rapidjson::kArrayType);
 		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
-		for(lt::torrent_status status : torrent_status) {
+		for(lt::torrent_status status : torrents_status) {
+			lt::torrent_handle handle = status.handle;
 			rapidjson::Value t(rapidjson::kObjectType);
 			t.AddMember("id", *it_ids, allocator);
 			it_ids++;
-			rapidjson::Value peers(rapidjson::kArrayType);
-			for(Torrent::torrent_peer tp : torrent_peers) {
-				rapidjson::Value f(rapidjson::kObjectType);
-				rapidjson::Value client;
-				client.SetString(tp.client.c_str(), tp.client.size(), allocator);
-				rapidjson::Value address;
-				address.SetString(tp.ip.address().to_string().c_str(), tp.ip.address().to_string().size(), allocator);
-				f.AddMember("ip", address, allocator);
-				f.AddMember("port", tp.ip.port(), allocator);
-				f.AddMember("client", client, allocator);
-				f.AddMember("down_speed", tp.down_speed, allocator);
-				f.AddMember("up_speed", tp.up_speed, allocator);
-				f.AddMember("down_total", tp.down_total, allocator);
-				f.AddMember("up_total", tp.up_total, allocator);
-				f.AddMember("progress", tp.progress, allocator);
-				peers.PushBack(f, allocator);
-			}
-			t.AddMember("peers", peers, allocator);
+			rapidjson::Value s(rapidjson::kObjectType);
+			rapidjson::Value temp_value;
+			temp_value.SetString(status.name.c_str(), status.name.length(), allocator);
+			s.AddMember("name", temp_value, allocator);
+			s.AddMember("download_rate", status.download_rate, allocator);
+			s.AddMember("download_limit", handle.download_limit(), allocator);
+			s.AddMember("upload_rate", status.upload_rate, allocator); 
+			s.AddMember("upload_limit", handle.upload_limit(), allocator);
+			s.AddMember("progress", status.progress, allocator); 
+			s.AddMember("total_download", status.total_download, allocator);
+			s.AddMember("total_payload_download", status.total_payload_download, allocator);
+			s.AddMember("download_payload_rate", status.download_payload_rate, allocator);
+			s.AddMember("total_payload_upload", status.total_payload_upload, allocator);
+			s.AddMember("upload_payload_rate", status.upload_payload_rate, allocator);
+			s.AddMember("total_failed_bytes", status.total_failed_bytes, allocator);
+			s.AddMember("total_redundant_bytes", status.total_redundant_bytes, allocator);
+			s.AddMember("total_done", status.total_done, allocator);
+			s.AddMember("total_upload", status.total_upload, allocator); 
+			s.AddMember("num_seeds", status.num_seeds, allocator);
+			temp_value.SetString(status.save_path.c_str(), status.save_path.length(), allocator);
+			s.AddMember("save_path", temp_value, allocator);
+			s.AddMember("next_announce", lt::duration_cast<lt::milliseconds>(status.next_announce).count(), allocator);
+			temp_value.SetString(status.current_tracker.c_str(), status.current_tracker.length(), allocator);
+			s.AddMember("current_tracker", temp_value, allocator);
+			s.AddMember("num_peers", status.num_peers, allocator);
+			s.AddMember("total_wanted_done", status.total_wanted_done, allocator);
+			s.AddMember("total_wanted", status.total_wanted, allocator);
+			s.AddMember("all_time_upload", status.all_time_upload, allocator);
+			s.AddMember("all_time_download", status.all_time_download, allocator);
+			s.AddMember("added_time", status.added_time, allocator);
+			s.AddMember("completed_time", status.completed_time, allocator);
+			s.AddMember("last_seen_complete", status.last_seen_complete, allocator);
+			s.AddMember("storage_mode", status.storage_mode, allocator);
+			s.AddMember("progress_ppm", status.progress_ppm, allocator);
+			s.AddMember("queue_position", status.queue_position, allocator);
+			s.AddMember("num_complete", status.num_complete, allocator);
+			s.AddMember("num_incomplete", status.num_incomplete, allocator);
+			s.AddMember("list_seeds", status.list_seeds, allocator);
+			s.AddMember("list_peers", status.list_peers, allocator);
+			s.AddMember("connect_candidates", status.connect_candidates, allocator);
+			s.AddMember("num_pieces", status.num_pieces, allocator);
+			s.AddMember("distributed_full_copies", status.distributed_full_copies, allocator);
+			s.AddMember("distributed_fraction", status.distributed_fraction, allocator);
+			s.AddMember("distributed_copies", status.distributed_copies, allocator);
+			s.AddMember("block_size", status.block_size, allocator);
+			s.AddMember("num_uploads", status.num_uploads, allocator);
+			s.AddMember("num_connections", status.num_connections, allocator);
+			s.AddMember("uploads_limit", status.uploads_limit, allocator);
+			s.AddMember("connections_limit", status.connections_limit, allocator);
+			s.AddMember("up_bandwidth_queue", status.up_bandwidth_queue, allocator);
+			s.AddMember("down_bandwidth_queue", status.down_bandwidth_queue, allocator); 
+			s.AddMember("seed_rank", status.seed_rank, allocator); 
+			s.AddMember("checking_resume_data", status.checking_resume_data, allocator); 
+			s.AddMember("need_save_resume", status.need_save_resume, allocator); 
+			s.AddMember("is_seeding", status.is_seeding, allocator); 
+			s.AddMember("is_finished", status.is_finished, allocator); 
+			s.AddMember("has_metadata", status.has_metadata, allocator); 
+			s.AddMember("has_incoming", status.has_incoming, allocator); 
+			s.AddMember("moving_storage", status.moving_storage, allocator); 
+			s.AddMember("announcing_to_trackers", status.announcing_to_trackers, allocator); 
+			s.AddMember("announcing_to_lsd", status.announcing_to_lsd, allocator); 
+			s.AddMember("announcing_to_dht", status.announcing_to_dht, allocator);
+			// TODO - deprecated in 1.2
+			// use last_upload, last_download or
+			// seeding_duration, finished_duration and active_duration
+			// instead
+			s.AddMember("time_since_upload", status.time_since_upload, allocator);  // TODO
+			s.AddMember("time_since_download", status.time_since_download, allocator); 
+			s.AddMember("active_time", status.active_time, allocator); 
+			s.AddMember("finished_time", status.finished_time, allocator); 
+			s.AddMember("seeding_time", status.seeding_time, allocator); 
+			/* info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
+			   the returned value is undefined. */
+			std::stringstream ss_info_hash;
+			ss_info_hash << status.info_hash;
+			std::string info_hash = ss_info_hash.str();
+			temp_value.SetString(info_hash.c_str(), info_hash.length(), allocator);
+			s.AddMember("info_hash", temp_value, allocator);	
+			t.AddMember("status", s, allocator);
 			torrents.PushBack(t, allocator);
 		}
 		document.AddMember("torrents", torrents, allocator);
@@ -725,61 +792,12 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
 		
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
-	
-		/*char const *message = "Succesfuly retrieved torrents";
-		document.AddMember("message", rapidjson::StringRef(message), allocator);
-		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
-		for(lt::torrent_status status : torrent_status) {
-			rapidjson::Value object(rapidjson::kObjectType);
-			//rapidjson::Value temp_value;
-		
-			rapidjson::Value t(rapidjson::kObjectType);
-			t.AddMember("id", *it_ids, allocator);
-
-			//temp_value.SetString(status.name.c_str(), status.name.length(), allocator);
-			object.AddMember("name", temp_value, allocator); 
-			object.AddMember("down_rate", status.download_rate, allocator); 
-			object.AddMember("up_rate", status.upload_rate, allocator); 
-			object.AddMember("progress", status.progress, allocator); 
-			object.AddMember("down_total", status.total_download, allocator); 
-			object.AddMember("up_total", status.total_upload, allocator); 
-			object.AddMember("seeds", status.num_seeds, allocator); 
-			object.AddMember("peers", status.num_peers, allocator);
-			// info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
-			//   the returned value is undefined.
-			std::stringstream ss_info_hash;
-			ss_info_hash << status.info_hash;
-			std::string info_hash = ss_info_hash.str();
-			//temp_value.SetString(info_hash.c_str(), info_hash.length(), allocator);
-			t.AddMember("torrents", object, allocator);
-			document.AddMember("a", t, allocator);
-		}
-
-
-		std::string json = stringfy_document(document);	
-		
-		if(accepts_gzip_encoding(request->header)) {
-			ss_response << gzip_encode(json);
-			http_header += "Content-Encoding: gzip\r\n";
-		}
-		else {
-			ss_response << json;
-		}
-		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
-		http_header += "Content-Type: application/json\r\n";
-		http_status = "202 Accepted";
-
-		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
-			<< " to " << request->remote_endpoint_address() << " Message: " << message;
-		
-		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
-	*/
 	}
 	else {
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 3100, allocator);
-		char const *message = error_codes.find(3100)->second.c_str();
+		e.AddMember("code", 3170, allocator);
+		char const *message = error_codes.find(3170)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
@@ -804,50 +822,6 @@ void RestAPI::torrents_get(std::shared_ptr<HttpServer::Response> response, std::
 
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
-	
-	
-	/* try {	
-		const std::vector<std::shared_ptr<Torrent>> torrents = torrent_manager.get_torrents();
-		rapidjson::Document document;
-		document.SetObject();
-		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		for(std::shared_ptr<Torrent> torrent : torrents) {
-			lt::torrent_status status = torrent->get_handle().status();
-
-			rapidjson::Value object(rapidjson::kObjectType);
-			rapidjson::Value temp_value;
-			
-			temp_value.SetString(status.name.c_str(), status.name.length(), allocator);
-			object.AddMember("name", temp_value, allocator); 
-			object.AddMember("down_rate", status.download_rate, allocator); 
-			object.AddMember("up_rate", status.upload_rate, allocator); 
-			object.AddMember("progress", status.progress, allocator); 
-			object.AddMember("down_total", status.total_download, allocator); 
-			object.AddMember("up_total", status.total_upload, allocator); 
-			object.AddMember("seeds", status.num_seeds, allocator); 
-			object.AddMember("peers", status.num_peers, allocator);
-			// info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
-			//   the returned value is undefined.
-			std::stringstream ss_info_hash;
-			ss_info_hash << status.info_hash;
-			std::string info_hash = ss_info_hash.str();
-			temp_value.SetString(info_hash.c_str(), info_hash.length(), allocator);
-			document.AddMember(temp_value, object, allocator);
-		}
-
-		rapidjson::StringBuffer string_buffer;
-		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
-		document.Accept(writer);
-		std::string json = string_buffer.GetString();
-	
-		*response << "HTTP/1.1 200 OK\r\nContent-Length: " << json.length() << "\r\n\r\n"
-				<< json;		
-	}
-	catch(const std::exception &e) {
-		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
-					<< e.what();
-		LOG_DEBUG << "HTTP Bad Request: " << e.what();
-	} */
 }
 
 void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
