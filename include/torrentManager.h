@@ -40,6 +40,7 @@ public:
 	std::vector<unsigned long int> get_all_ids();
 	unsigned long int get_files_torrents(std::vector<std::vector<Torrent::torrent_file>> &torrent_files, const std::vector<unsigned long int> ids, bool piece_granularity);
 	unsigned long int get_peers_torrents(std::vector<std::vector<Torrent::torrent_peer>> &torrent_peers, const std::vector<unsigned long int> ids);
+	unsigned long int get_status_torrents(std::vector<lt::torrent_status> &torrent_status, const std::vector<unsigned long int> ids);
 	unsigned long int recheck_torrents(const std::vector<unsigned long int> ids);
 	unsigned long int start_torrents(const std::vector<unsigned long int> ids);	
 	lt::alert const* wait_for_alert(lt::time_duration max_wait);

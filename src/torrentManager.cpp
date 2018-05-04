@@ -612,3 +612,30 @@ unsigned long int TorrentManager::start_torrents(const std::vector<unsigned long
 	}
 	return 0;
 }
+
+unsigned long int TorrentManager::get_status_torrents(std::vector<lt::torrent_status> &torrent_status, const std::vector<unsigned long int> ids) {
+	// TODO - put this check in a function and use it in all other API methods to reduce redundancy
+	// Check if all torrents in ids in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Get status from torrents in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				lt::torrent_status status = (*it)->get_torrent_status();
+				torrent_status.push_back(status);
+			}
+		}
+	}
+
+	return 0;
+}
