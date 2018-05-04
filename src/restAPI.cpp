@@ -915,51 +915,77 @@ void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, s
 
     // go through all content parts
     while(true) {
-      std::stringstream file; // std::stringstream is used as example output type
+      std::stringstream content;
       std::string filename;
+      std::string name;
 
       auto header = SimpleWeb::HttpHeader::parse(request->content);
       auto header_it = header.find("Content-Disposition");
       if(header_it != header.end()) {
         auto content_disposition_attributes = SimpleWeb::HttpHeader::FieldValue::SemicolonSeparatedAttributes::parse(header_it->second);
-        auto filename_it = content_disposition_attributes.find("filename");
-        if(filename_it != content_disposition_attributes.end()) {
-          filename = filename_it->second;
+        auto name_it = content_disposition_attributes.find("name");
+        if(name_it != content_disposition_attributes.end()) {
+          name = name_it->second;
 
-          bool add_newline_next = false; // there is an extra newline before content boundary, this avoids adding this extra newline to file
-          // store file content in variable file
-          while(true) {
-            request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
-            if(request->content.eof()) {
-              response->write(SimpleWeb::StatusCode::client_error_bad_request);
-              return;
-            }
-            auto size = request->content.gcount();
+		  bool add_newline_next = false; // there is an extra newline before content boundary, this avoids adding this extra newline to file
+		  while(true) {
+		    request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
+		    if(request->content.eof()) {
+		      response->write(SimpleWeb::StatusCode::client_error_bad_request);
+		      return;
+		    }
+		    auto size = request->content.gcount();
 
-            if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
-               std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
-               buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
-              break;
+		    if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
+		       std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
+		       buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
+		      break;
 
-            if(add_newline_next) {
-              file.put('\n');
-              add_newline_next = false;
-            }
+		    if(add_newline_next) {
+		      content.put('\n');
+		      add_newline_next = false;
+		    }
 
-            if(!request->content.fail()) { // got line or section that ended with newline
-              file.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
-              add_newline_next = true;
-            }
-            else
-              file.write(buffer.c_str(), size);
+		    if(!request->content.fail()) { // got line or section that ended with newline
+		      content.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
+		      add_newline_next = true;
+		    }
+		    else
+		      content.write(buffer.c_str(), size);
 
-            request->content.clear(); // clear stream state
-          }
+		    request->content.clear(); // clear stream state
+		  }
+			
+			if(name == "torrentfile") {
+				auto filename_it = content_disposition_attributes.find("filename");
+				if(filename_it != content_disposition_attributes.end()) {
+					filename = filename_it->second;
 
-		std::ofstream ofs(filename);
-		ofs << file.rdbuf();
-		ofs.close();
-        }
+					std::ofstream ofs(filename);
+					ofs << content.rdbuf();
+					ofs.close();
+				}
+				else {
+					// TODO - return something indication the error to the function calling
+				}
+			}
+			else if(name == "magnet") {
+				LOG_DEBUG << "magnet" << content.str();
+			}
+			else if(name == "infohash") {
+				LOG_DEBUG << "infohash" << content.str();
+			}
+			else if(name == "http") {
+				LOG_DEBUG << "http" << content.str();
+			}
+			else {
+				// TODO
+			}
+	}
+	else {
+		// TODO - respond
+	}
+
       }
       else { // no more parts
         response->write(); // Write empty success response
