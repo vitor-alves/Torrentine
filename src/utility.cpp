@@ -12,6 +12,7 @@
 #include <boost/iostreams/filtering_streambuf.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+#include <curl/curl.h>
 
 std::string random_string(std::string chars, int const size) {
 	std::random_device rgn;
@@ -142,3 +143,22 @@ bool is_text_double_number(std::string const s) {
 	}
 }
 
+bool download_file(const char* url, const char* file_name) {
+
+	  CURL* easyhandle = curl_easy_init();
+
+  curl_easy_setopt( easyhandle, CURLOPT_URL, url ) ;
+
+  FILE* file = fopen( file_name, "w");
+
+  curl_easy_setopt( easyhandle, CURLOPT_WRITEDATA, file) ;
+
+  curl_easy_perform( easyhandle );
+
+  curl_easy_cleanup( easyhandle );
+
+  fclose(file);
+
+  	return true;
+
+}

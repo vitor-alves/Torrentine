@@ -78,6 +78,7 @@ public:
 	void torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void webUI_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void get_logs(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 };
 
 

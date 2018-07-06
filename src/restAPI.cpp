@@ -107,6 +107,7 @@ void RestAPI::define_resources() {
 	       	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_add(response, request); };
 
+	/* / - GET WEB UI*/
 	server.default_resource["GET"] =
 	        [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->webUI_get(response, request); };
@@ -903,7 +904,7 @@ void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, st
 	}
 }
 
-void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+void RestAPI::add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
     std::string buffer;
     buffer.resize(131072);
 
@@ -955,31 +956,110 @@ void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, s
 
 		    request->content.clear(); // clear stream state
 		  }
-			
+			// TODO - there should be a verification to check in torrentfile is not above X megabytes (to avoid abuse)	
 			if(name == "torrentfile") {
 				auto filename_it = content_disposition_attributes.find("filename");
 				if(filename_it != content_disposition_attributes.end()) {
 					filename = filename_it->second;
+					
+					fs::path const received_torrent = torrent_file_path + filename;
 
-					std::ofstream ofs(filename);
+					std::ofstream ofs(received_torrent.string());
 					ofs << content.rdbuf();
 					ofs.close();
+
+					std::vector<char> buffer;
+					if(!file_to_buffer(buffer, received_torrent.string())) {
+						LOG_ERROR << "A problem occured while adding torrent with filename " << received_torrent.string();
+						return;	
+					}
+
+					lt::bdecode_node node;
+					char const *buf = buffer.data();	
+					lt::error_code ec;
+					int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
+					if(ec) {
+						LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
+						return;
+					}	
+
+					lt::add_torrent_params atp;
+					lt::torrent_info info(node);	
+					boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
+					atp.ti = t_info;
+					atp.save_path = download_path;
+				
+					bool success = torrent_manager.add_torrent_async(atp);
 				}
 				else {
 					// TODO - return something indication the error to the function calling
 				}
 			}
 			else if(name == "magnet") {
-				LOG_DEBUG << "magnet" << content.str();
+				lt::add_torrent_params atp;
+				atp.url = content.str();
+				atp.save_path = download_path;
+				
+				bool success = torrent_manager.add_torrent_async(atp);
 			}
 			else if(name == "infohash") {
-				LOG_DEBUG << "infohash" << content.str();
+				lt::add_torrent_params atp;
+
+				std::string infohash_str = content.str();
+				lt::sha1_hash hash;
+				content >> hash;
+				atp.info_hash = hash;
+				LOG_DEBUG << "INFOHASH: " << hash;
+				LOG_DEBUG << "INFOHASHstr: " << infohash_str;
+				atp.save_path = download_path;
+				
+				bool success = torrent_manager.add_torrent_async(atp);
 			}
 			else if(name == "http") {
-				LOG_DEBUG << "http" << content.str();
+				std::vector<std::string> splitted_url = split_string(content.str(), '/');
+				
+				if(splitted_url.empty()) {
+					LOG_ERROR << "Problem occured while adding torrent. No HTTP URL was found.";
+					return;
+				}
+
+				std::string filename = splitted_url.at(splitted_url.size()-1);
+				if(filename.empty()) {
+					LOG_ERROR << "Problem occured while adding torrent. No HTTP URL was found."; 
+					return;
+				}
+				
+				LOG_DEBUG << "FILENAME TESTE: " << filename;	
+				std::string url = "https://torrents.linuxmint.com/torrents/linuxmint-19-xfce-32bit.iso.torrent";
+				std::string out_file = torrent_file_path + filename;
+				// TODO - this download is being done sincronously and slows down the HTTP response considerably. Make the process of downloading the .torrent and adding in async somehow when the adding method is "http"
+				bool success = download_file(url.c_str(), out_file.c_str()); // TODO - log unsucessful download
+
+				std::vector<char> buffer;
+				if(!file_to_buffer(buffer, torrent_file_path + filename)) {
+					LOG_ERROR << "A problem occured while adding torrent with filename " << filename;
+					return;	
+				}
+
+				lt::bdecode_node node;
+				char const *buf = buffer.data();	
+				lt::error_code ec;
+				int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
+				if(ec) {
+					LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
+					return;
+				}	
+
+				lt::add_torrent_params atp;
+				lt::torrent_info info(node);	
+				boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
+				atp.ti = t_info;
+				atp.save_path = download_path;
+			
+				success = torrent_manager.add_torrent_async(atp);
 			}
 			else {
-				// TODO
+				// TODO - log unknown name
 			}
 	}
 	else {

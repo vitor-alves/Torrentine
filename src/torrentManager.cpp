@@ -20,29 +20,11 @@ TorrentManager::~TorrentManager() {
 	session.~session(); 
 }
 
-bool TorrentManager::add_torrent_async(const std::string filename, const std::string save_path) {
-	std::vector<char> buffer;
-	if(!file_to_buffer(buffer, filename)) {
-		LOG_ERROR << "A problem occured while adding torrent with filename " << filename;
-		return false;	
-	}
-	
-	lt::bdecode_node node;
-	char const *buf = buffer.data();	
-	lt::error_code ec;
-	int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
-	if(ec) {
-		LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
-		return false;
-	}	
-	lt::add_torrent_params atp;
-	lt::torrent_info info(node);	
-	boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
-	atp.ti = t_info;
-	atp.save_path = save_path;
+bool TorrentManager::add_torrent_async(const lt::add_torrent_params &atp) {
 	session.async_add_torrent(atp);
 
-	LOG_INFO << "Torrent with filename " << filename << " marked for asynchronous addition";
+	LOG_INFO << "Torrent with filename " << atp.save_path << " marked for asynchronous addition";
+	
 	return true;
 }
 

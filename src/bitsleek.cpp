@@ -61,7 +61,8 @@ int main(int argc, char const* argv[])
 		torrent_manager.wait_for_alert(lt::milliseconds(1000));	
 		// TODO - Ideally saving fastresume periodically should be done outside the main thread because this may take some time, but there
 		// are some special cases that need to be addressed before putting this in another thread. Libtorrent says:
-		// Make sure to not remove_torrent() before you receive the save_resume_data_alert though
+		// Make sure to not remove_torrent() before you receive the save_resume_data_alert though. What happens is that the removed torrent may 
+		// incorrectly still exist in the fastresume data.
 		if(std::chrono::steady_clock::now() - last_save_fastresume > std::chrono::seconds(60)) {
 			torrent_manager.save_fastresume(lt::torrent_handle::save_resume_flags_t::save_info_dict |
 							lt::torrent_handle::save_resume_flags_t::only_if_modified);
@@ -143,8 +144,9 @@ void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {
 		LOG_ERROR << "Test torrents were not added. Could not get config: " << e.what();
 		return;
 	}
-	bool success_t1 = torrent_manager.add_torrent_async("test/sample_torrents/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
-	bool success_t2 = torrent_manager.add_torrent_async("test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
-	bool success_t3 = torrent_manager.add_torrent_async("test/sample_torrents/Royalty.Free.Background.Music.Pack.torrent", download_path);
+	// TODO - adapt this to the new function that accepts an atp
+	//bool success_t1 = torrent_manager.add_torrent_async("test/sample_torrents/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
+	//bool success_t2 = torrent_manager.add_torrent_async("test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
+	//bool success_t3 = torrent_manager.add_torrent_async("test/sample_torrents/Royalty.Free.Background.Music.Pack.torrent", download_path);
 	LOG_DEBUG << "Added test torrents";
 }

@@ -15,3 +15,4 @@ std::string gzip_encode(std::string s);
 bool is_text_boolean(std::string const s);
 bool is_text_int_number(std::string const s);
 bool is_text_double_number(std::string const s);
+bool download_file(const char* url, const char* file_name);
