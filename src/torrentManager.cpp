@@ -20,12 +20,11 @@ TorrentManager::~TorrentManager() {
 	session.~session(); 
 }
 
-bool TorrentManager::add_torrent_async(const lt::add_torrent_params &atp) {
+void TorrentManager::add_torrent_async(const lt::add_torrent_params &atp) {
 	session.async_add_torrent(atp);
-
-	LOG_INFO << "Torrent with filename " << atp.save_path << " marked for asynchronous addition";
 	
-	return true;
+	// TODO - this is logging incorrectly!!
+	LOG_INFO << "Torrent with filename " << atp.save_path << " marked for asynchronous addition";
 }
 
 /* Debug only */

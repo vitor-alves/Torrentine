@@ -35,18 +35,18 @@ RestAPI::~RestAPI() {
 
 void RestAPI::start_server() {
 	server_thread = std::make_unique<std::thread>( [&]() { 
-				try {
-					LOG_INFO << "Web UI and REST API server will start listening on "
-				       	<< server.config.address << ":" << server.config.port;
-					server.start();
-				}
-				catch(std::exception const &e) {
-					LOG_ERROR << "Web server error: " << e.what() << ". Is port " <<
-				       	server.config.port << " already in use?" ;
-					std::cerr << "Web server error: " << e.what() << ". Is port " <<
-				       	server.config.port << " already in use?"
-					<< " Check log files for more information." << std::endl;
-				}} );
+			try {
+			LOG_INFO << "Web UI and REST API server will start listening on "
+			<< server.config.address << ":" << server.config.port;
+			server.start();
+			}
+			catch(std::exception const &e) {
+			LOG_ERROR << "Web server error: " << e.what() << ". Is port " <<
+			server.config.port << " already in use?" ;
+			std::cerr << "Web server error: " << e.what() << ". Is port " <<
+			server.config.port << " already in use?"
+			<< " Check log files for more information." << std::endl;
+			}} );
 
 	server.on_error = [](std::shared_ptr<HttpServer::Request> request, const SimpleWeb::error_code & ec) {
 		LOG_ERROR << "Web server error: " << ec.message();
@@ -65,27 +65,27 @@ void RestAPI::stop_server() {
 void RestAPI::define_resources() {
 	/* /torrents/<id>/stop - PATCH */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
-	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_stop(response, request); };
 
 	/* /torrents/<id>/files - GET */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)files$"]["GET"] =
-	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_files_get(response, request); };
 
 	/* /torrents/<id>/peers - GET */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)peers$"]["GET"] =
-	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_peers_get(response, request); };
 
 	/* /torrents/<id>/recheck - POST */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)recheck$"]["POST"] =
-	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_recheck(response, request); };
 
 	/* /torrents/<id>/start - PATCH */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)start$"]["PATCH"] =
-	      	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_start(response, request); };
 
 	/* /session/torrents/<id>/status - GET */
@@ -103,19 +103,20 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->get_logs(response, request); };
 
+	/* /session/torrents - POST */
 	server.resource["^/v1.0/session/torrents$"]["POST"] =
-	       	[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_add(response, request); };
 
 	/* / - GET WEB UI*/
 	server.default_resource["GET"] =
-	        [&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->webUI_get(response, request); };
 }
 
 std::string RestAPI::validate_all_parameters(SimpleWeb::CaseInsensitiveMultimap &query,
-	std::map<std::string, api_parameter> &required_parameters,
-	std::map<std::string, api_parameter> &optional_parameters) {
+		std::map<std::string, api_parameter> &required_parameters,
+		std::map<std::string, api_parameter> &optional_parameters) {
 
 	SimpleWeb::CaseInsensitiveMultimap::iterator it_query;
 	for(auto p = required_parameters.begin(); p != required_parameters.end(); p++) {
@@ -168,7 +169,7 @@ void RestAPI::torrents_recheck(std::shared_ptr<HttpServer::Response> response, s
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.recheck_torrents(ids);
-	
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -180,7 +181,7 @@ void RestAPI::torrents_recheck(std::shared_ptr<HttpServer::Response> response, s
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
 
 		std::string json = stringfy_document(document);	
-		
+
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
 			http_header += "Content-Encoding: gzip\r\n";
@@ -194,7 +195,7 @@ void RestAPI::torrents_recheck(std::shared_ptr<HttpServer::Response> response, s
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
-		
+
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
@@ -206,7 +207,7 @@ void RestAPI::torrents_recheck(std::shared_ptr<HttpServer::Response> response, s
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
+
 		std::string json = stringfy_document(document);
 
 		if(accepts_gzip_encoding(request->header)) {
@@ -246,7 +247,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.stop_torrents(ids, str_to_bool(optional_parameters.find("force_stop")->second.value));
-	
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -258,7 +259,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
 
 		std::string json = stringfy_document(document);	
-		
+
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
 			http_header += "Content-Encoding: gzip\r\n";
@@ -272,7 +273,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
-		
+
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
@@ -284,7 +285,7 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
+
 		std::string json = stringfy_document(document);
 
 		if(accepts_gzip_encoding(request->header)) {
@@ -307,11 +308,10 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 }
 
 void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	// TODO - disabled for tests only. enable later.
-	//if(!validate_authorization(request)) {
-	//	respond_invalid_authorization(response, request);
-	//	return;
-	//}
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
 
 	fs::path log_path;
 	try {
@@ -323,7 +323,7 @@ void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shar
 
 	std::vector<char> buffer;
 	bool result = file_to_buffer(buffer, log_path.string());
-	
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -349,7 +349,7 @@ void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shar
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
-		
+
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
@@ -360,7 +360,7 @@ void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shar
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
+
 		std::string json = stringfy_document(document);
 
 		if(accepts_gzip_encoding(request->header)) {
@@ -383,18 +383,17 @@ void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shar
 }
 
 void RestAPI::torrents_peers_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	// TODO - Disabled for tests. Enable later
-	//if(!validate_authorization(request)) {
-	//	respond_invalid_authorization(response, request);
-	//	return;
-	//}
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
 
 	std::vector<std::vector<Torrent::torrent_peer>> requested_torrent_peers;
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	if(ids.size() == 0) // If no ids were specified, consider all ids
 		ids = torrent_manager.get_all_ids(); 
 	unsigned long int result = torrent_manager.get_peers_torrents(requested_torrent_peers, ids);
-	
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -433,7 +432,7 @@ void RestAPI::torrents_peers_get(std::shared_ptr<HttpServer::Response> response,
 		document.AddMember("torrents", torrents, allocator);
 
 		std::string json = stringfy_document(document);	
-		
+
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
 			http_header += "Content-Encoding: gzip\r\n";
@@ -447,7 +446,7 @@ void RestAPI::torrents_peers_get(std::shared_ptr<HttpServer::Response> response,
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
-		
+
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
@@ -459,7 +458,7 @@ void RestAPI::torrents_peers_get(std::shared_ptr<HttpServer::Response> response,
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
+
 		std::string json = stringfy_document(document);
 
 		if(accepts_gzip_encoding(request->header)) {
@@ -502,7 +501,7 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 	if(ids.size() == 0) // If no ids were specified, consider all ids
 		ids = torrent_manager.get_all_ids(); // TODO - use this same approach in all other API calls and reduce the redundant code in the action methods. This way we do not need to treat ids empty differently than ids non empty in the action method, cuz its always non empty (if torrents exist). 
 	unsigned long int result = torrent_manager.get_files_torrents(requested_torrent_files, ids, str_to_bool(optional_parameters.find("piece_granularity")->second.value));
-	
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -543,7 +542,7 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 		document.AddMember("torrents", torrents, allocator);
 
 		std::string json = stringfy_document(document);	
-		
+
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
 			http_header += "Content-Encoding: gzip\r\n";
@@ -557,7 +556,7 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
-		
+
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
@@ -569,7 +568,7 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
+
 		std::string json = stringfy_document(document);
 
 		if(accepts_gzip_encoding(request->header)) {
@@ -599,7 +598,7 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.start_torrents(ids);
-	
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
@@ -611,7 +610,7 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
 
 		std::string json = stringfy_document(document);	
-		
+
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
 			http_header += "Content-Encoding: gzip\r\n";
@@ -625,7 +624,7 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
-		
+
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
@@ -637,7 +636,7 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
+
 		std::string json = stringfy_document(document);
 
 		if(accepts_gzip_encoding(request->header)) {
@@ -664,11 +663,10 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 // 	- tests needed to check if everything is working fine.
 // 	TODO - lt::error_code errc, error_file, error_file_exception etc curently not used. Use this to inform the user of possible errors in the torrent. All other variables are used, except the ones regarding to errors. No errors are treated at the moment.
 void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	// TODO - Disabled for tests. Enable later
-	//if(!validate_authorization(request)) {
-	//	respond_invalid_authorization(response, request);
-	//	return;
-	//}
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	// TODO - Inefficient. When ids.size() = 0 should be treated inside the calls, not here.
@@ -777,7 +775,7 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 		document.AddMember("torrents", torrents, allocator);
 
 		std::string json = stringfy_document(document);	
-		
+
 		if(accepts_gzip_encoding(request->header)) {
 			ss_response << gzip_encode(json);
 			http_header += "Content-Encoding: gzip\r\n";
@@ -791,7 +789,7 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
-		
+
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
@@ -803,7 +801,7 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
+
 		std::string json = stringfy_document(document);
 
 		if(accepts_gzip_encoding(request->header)) {
@@ -826,52 +824,52 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 }
 
 void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-		if(!validate_authorization(request)) {
-			respond_invalid_authorization(response, request);
-			return;
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	std::map<std::string, api_parameter> required_parameters = {};
+	std::map<std::string, api_parameter> optional_parameters = {
+		{"remove_data",{"remove_data","false",api_parameter_format::boolean,{"true","false"}}} };
+	SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
+	std::string invalid_parameter = validate_all_parameters(query, required_parameters, optional_parameters);
+	if(invalid_parameter.length() > 0) { 
+		respond_invalid_parameter(response, request, invalid_parameter);
+		return;
+	}
+
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+
+	unsigned long int result = torrent_manager.remove_torrent(ids, str_to_bool(optional_parameters.find("remove_data")->second.value));
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_header;
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "An attempt to remove the torrents will be made asynchronously";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+
+		std::string json = stringfy_document(document);	
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
 		}
-
-		std::map<std::string, api_parameter> required_parameters = {};
-		std::map<std::string, api_parameter> optional_parameters = {
-			{"remove_data",{"remove_data","false",api_parameter_format::boolean,{"true","false"}}} };
-		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
-		std::string invalid_parameter = validate_all_parameters(query, required_parameters, optional_parameters);
-		if(invalid_parameter.length() > 0) { 
-			respond_invalid_parameter(response, request, invalid_parameter);
-			return;
+		else {
+			ss_response << json;
 		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "202 Accepted";
 
-		std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
-		
-		unsigned long int result = torrent_manager.remove_torrent(ids, str_to_bool(optional_parameters.find("remove_data")->second.value));
-		
-		rapidjson::Document document;
-		document.SetObject();
-		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		std::string http_header;
-		std::string http_status;
-		std::stringstream ss_response;
-		if(result == 0) {
-			char const *message = "An attempt to remove the torrents will be made asynchronously";
-			document.AddMember("message", rapidjson::StringRef(message), allocator);
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
 
-			std::string json = stringfy_document(document);	
-			
-			if(accepts_gzip_encoding(request->header)) {
-				ss_response << gzip_encode(json);
-				http_header += "Content-Encoding: gzip\r\n";
-			}
-			else {
-				ss_response << json;
-			}
-			http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
-			http_header += "Content-Type: application/json\r\n";
-			http_status = "202 Accepted";
-
-			LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
-				<< " to " << request->remote_endpoint_address() << " Message: " << message;
-			
-			*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 	else {
 		rapidjson::Value errors(rapidjson::kArrayType);
@@ -882,7 +880,7 @@ void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, st
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
 		document.AddMember("errors", errors, allocator);
-		
+
 		std::string json = stringfy_document(document);
 
 		if(accepts_gzip_encoding(request->header)) {
@@ -904,74 +902,156 @@ void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, st
 	}
 }
 
-void RestAPI::add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-    std::string buffer;
-    buffer.resize(131072);
+int RestAPI::parse_request_to_atp(std::shared_ptr<HttpServer::Request> request, std::vector<lt::add_torrent_params> &parsed_atps) {
+	int error_code = 0;	
+	std::string buffer;
+	buffer.resize(131072);
 
-    std::string boundary;
-    if(!getline(request->content, boundary)) {
-      response->write(SimpleWeb::StatusCode::client_error_bad_request);
-      return;
-    }
+	std::string boundary;
+	if(!getline(request->content, boundary)) {
+		error_code = 3180;
+		LOG_ERROR << error_codes.at(error_code); 
+		return error_code;
+	}
 
-    // go through all content parts
-    while(true) {
-      std::stringstream content;
-      std::string filename;
-      std::string name;
+	// go through all content parts
+	while(true) {
+		std::stringstream content;
+		std::string filename;
+		std::string name;
 
-      auto header = SimpleWeb::HttpHeader::parse(request->content);
-      auto header_it = header.find("Content-Disposition");
-      if(header_it != header.end()) {
-        auto content_disposition_attributes = SimpleWeb::HttpHeader::FieldValue::SemicolonSeparatedAttributes::parse(header_it->second);
-        auto name_it = content_disposition_attributes.find("name");
-        if(name_it != content_disposition_attributes.end()) {
-          name = name_it->second;
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		auto header_it = header.find("Content-Disposition");
+		if(header_it != header.end()) {
+			auto content_disposition_attributes = SimpleWeb::HttpHeader::FieldValue::SemicolonSeparatedAttributes::parse(header_it->second);
+			auto name_it = content_disposition_attributes.find("name");
+			if(name_it != content_disposition_attributes.end()) {
+				name = name_it->second;
 
-		  bool add_newline_next = false; // there is an extra newline before content boundary, this avoids adding this extra newline to file
-		  while(true) {
-		    request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
-		    if(request->content.eof()) {
-		      response->write(SimpleWeb::StatusCode::client_error_bad_request);
-		      return;
-		    }
-		    auto size = request->content.gcount();
+				bool add_newline_next = false; // there is an extra newline before content boundary, this avoids adding this extra newline to file
+				while(true) {
+					request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
+					if(request->content.eof()) {
+						error_code = 3190;
+						LOG_ERROR << error_codes.at(error_code);
+						return error_code;
+					}
+					auto size = request->content.gcount();
 
-		    if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
-		       std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
-		       buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
-		      break;
+					if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
+							std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
+							buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
+						break;
 
-		    if(add_newline_next) {
-		      content.put('\n');
-		      add_newline_next = false;
-		    }
+					if(add_newline_next) {
+						content.put('\n');
+						add_newline_next = false;
+					}
 
-		    if(!request->content.fail()) { // got line or section that ended with newline
-		      content.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
-		      add_newline_next = true;
-		    }
-		    else
-		      content.write(buffer.c_str(), size);
+					if(!request->content.fail()) { // got line or section that ended with newline
+						content.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
+						add_newline_next = true;
+					}
+					else
+						content.write(buffer.c_str(), size);
 
-		    request->content.clear(); // clear stream state
-		  }
-			// TODO - there should be a verification to check in torrentfile is not above X megabytes (to avoid abuse)	
-			if(name == "torrentfile") {
-				auto filename_it = content_disposition_attributes.find("filename");
-				if(filename_it != content_disposition_attributes.end()) {
-					filename = filename_it->second;
-					
-					fs::path const received_torrent = torrent_file_path + filename;
+					request->content.clear(); // clear stream state
+				}
+				// TODO - there should be a verification to check if torrentfile is not above X megabytes (to avoid abuse)	
+				if(name == "torrentfile") {
+					auto filename_it = content_disposition_attributes.find("filename");
+					if(filename_it != content_disposition_attributes.end()) {
+						filename = filename_it->second;
 
-					std::ofstream ofs(received_torrent.string());
-					ofs << content.rdbuf();
-					ofs.close();
+						fs::path const received_torrent = torrent_file_path + filename;
+
+						std::ofstream ofs(received_torrent.string());
+						ofs << content.rdbuf();
+						ofs.close();
+
+						std::vector<char> buffer;
+						if(!file_to_buffer(buffer, received_torrent.string())) {
+							LOG_ERROR << "A problem occured while adding torrent with filename " << received_torrent.string();
+							error_code = 3200;
+							return error_code;	
+						}
+
+						lt::bdecode_node node;
+						char const *buf = buffer.data();	
+						lt::error_code ec;
+						int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
+						if(ec) {
+							LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
+							error_code = 3240;
+							return error_code;	
+						}	
+
+						lt::add_torrent_params atp;
+						lt::torrent_info info(node);	
+						boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
+						atp.ti = t_info;
+						atp.save_path = download_path;
+
+						parsed_atps.push_back(atp);
+					}
+					else {
+						error_code = 3210; 
+						LOG_ERROR << error_codes.at(error_code);
+						return error_code;
+					}
+				}
+				else if(name == "magnet") {
+					lt::add_torrent_params atp;
+					atp.url = content.str();
+					atp.save_path = download_path;
+
+					parsed_atps.push_back(atp);
+				}
+				else if(name == "infohash") {
+					lt::add_torrent_params atp;
+
+					std::string infohash_str = content.str();
+					lt::sha1_hash hash;
+					content >> hash;
+					atp.info_hash = hash;
+					atp.save_path = download_path;
+
+					parsed_atps.push_back(atp);
+				}
+				else if(name == "http") {
+					std::string url = content.str();
+					if(!url.empty() && url[url.size()-1] == '\r' ) { // TODO - Messing with \r, \n, \r\n may cause issues in different platforms... Test this heavily.
+						url.erase(url.size()-1);
+					}
+					std::vector<std::string> splitted_url = split_string(url, '/');
+
+					if(splitted_url.empty()) {
+						error_code = 3220;
+						LOG_ERROR << error_codes.at(error_code);
+						return error_code;
+					}
+					std::string filename = splitted_url.at(splitted_url.size()-1);
+					if(filename.empty()) {
+						error_code = 3220;
+						LOG_ERROR << error_codes.at(error_code);
+						return error_code;
+					}
+
+					std::string out_file = torrent_file_path + filename;
+					// TODO - this download is being done sincronously and slows down the HTTP response considerably. Make the process of downloading the .torrent and adding in async somehow when the adding method is "http"
+					bool success = download_file(url.c_str(), out_file.c_str()); 
+					if(success == false) {
+						// TODO - this needs to be improved. When the file cannot be downloaded the server responds that the file cannot be downloaded but does not specify which file cant be downloaded (does not respond the url. only logs it). I think its time to create an error object to organize things. I am not happy with how the errors are being treated in cases like this because its confusing. Find a good solution. 
+						LOG_ERROR << "Could not download file " + url;
+						error_code = 3230;
+						return error_code;
+					}
 
 					std::vector<char> buffer;
-					if(!file_to_buffer(buffer, received_torrent.string())) {
-						LOG_ERROR << "A problem occured while adding torrent with filename " << received_torrent.string();
-						return;	
+					if(!file_to_buffer(buffer, torrent_file_path + filename)) {
+						LOG_ERROR << "Could not open file" + filename;
+						error_code = 3200;
+						return error_code;
 					}
 
 					lt::bdecode_node node;
@@ -979,8 +1059,9 @@ void RestAPI::add_torrents_from_request(std::shared_ptr<HttpServer::Response> re
 					lt::error_code ec;
 					int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
 					if(ec) {
-						LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
-						return;
+						LOG_ERROR << "Problem occured while decoding torrent: " + ec.message(); 
+						error_code = 3240;
+						return error_code;
 					}	
 
 					lt::add_torrent_params atp;
@@ -988,148 +1069,95 @@ void RestAPI::add_torrents_from_request(std::shared_ptr<HttpServer::Response> re
 					boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
 					atp.ti = t_info;
 					atp.save_path = download_path;
-				
-					bool success = torrent_manager.add_torrent_async(atp);
+
+					parsed_atps.push_back(atp);
 				}
 				else {
-					// TODO - return something indication the error to the function calling
+					LOG_ERROR << "Unknown name \"" << name << "\" in form data was ignored";
 				}
 			}
-			else if(name == "magnet") {
-				lt::add_torrent_params atp;
-				atp.url = content.str();
-				atp.save_path = download_path;
-				
-				bool success = torrent_manager.add_torrent_async(atp);
-			}
-			else if(name == "infohash") {
-				lt::add_torrent_params atp;
-
-				std::string infohash_str = content.str();
-				lt::sha1_hash hash;
-				content >> hash;
-				atp.info_hash = hash;
-				LOG_DEBUG << "INFOHASH: " << hash;
-				LOG_DEBUG << "INFOHASHstr: " << infohash_str;
-				atp.save_path = download_path;
-				
-				bool success = torrent_manager.add_torrent_async(atp);
-			}
-			else if(name == "http") {
-				std::vector<std::string> splitted_url = split_string(content.str(), '/');
-				
-				if(splitted_url.empty()) {
-					LOG_ERROR << "Problem occured while adding torrent. No HTTP URL was found.";
-					return;
-				}
-
-				std::string filename = splitted_url.at(splitted_url.size()-1);
-				if(filename.empty()) {
-					LOG_ERROR << "Problem occured while adding torrent. No HTTP URL was found."; 
-					return;
-				}
-				
-				LOG_DEBUG << "FILENAME TESTE: " << filename;	
-				std::string url = "https://torrents.linuxmint.com/torrents/linuxmint-19-xfce-32bit.iso.torrent";
-				std::string out_file = torrent_file_path + filename;
-				// TODO - this download is being done sincronously and slows down the HTTP response considerably. Make the process of downloading the .torrent and adding in async somehow when the adding method is "http"
-				bool success = download_file(url.c_str(), out_file.c_str()); // TODO - log unsucessful download
-
-				std::vector<char> buffer;
-				if(!file_to_buffer(buffer, torrent_file_path + filename)) {
-					LOG_ERROR << "A problem occured while adding torrent with filename " << filename;
-					return;	
-				}
-
-				lt::bdecode_node node;
-				char const *buf = buffer.data();	
-				lt::error_code ec;
-				int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
-				if(ec) {
-					LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
-					return;
-				}	
-
-				lt::add_torrent_params atp;
-				lt::torrent_info info(node);	
-				boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
-				atp.ti = t_info;
-				atp.save_path = download_path;
-			
-				success = torrent_manager.add_torrent_async(atp);
-			}
-			else {
-				// TODO - log unknown name
-			}
-	}
-	else {
-		// TODO - respond
+		}
+		else { // no more parts
+			error_code = 0;
+			return error_code;
+		}
 	}
 
-      }
-      else { // no more parts
-        response->write(); // Write empty success response
-        return;
-      }
-    }
 }
 
 void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	try {
-		/*
-		if(!validate_authorization(request)) {
-			respond_invalid_authorization(response, request);
-			return;
+	/*
+	   if(!validate_authorization(request)) {
+	   respond_invalid_authorization(response, request);
+	   return;
+	   }
+	   */
+
+	std::vector<lt::add_torrent_params> parsed_atps;
+	int error_code = parse_request_to_atp(request, parsed_atps);
+
+	if(error_code == 0) {
+		for(lt::add_torrent_params atp : parsed_atps) {
+			torrent_manager.add_torrent_async(atp);
 		}
-		*/
-		
-		add_torrents_from_request(response, request);
-		
-	/*	
-		// Generate .torrent file from content
-		std::string name;
-		do {
-			name = random_string("1234567890", 20) + ".torrent";
-		}
-		while(boost::filesystem::exists(torrent_file_path + name));
-		auto content = request->content.string();
-		std::ofstream file;
-		file.open(torrent_file_path + name, std::ofstream::out);
-		file << content;
-		file.close();
-
-		bool success = torrent_manager.add_torrent_async(torrent_file_path + name, download_path);
-
-		rapidjson::Document document;
-		document.SetObject();
-		rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-		std::string http_status;
-		if(success) {
-			document.AddMember("success", true, allocator);
-			document.AddMember("status", "An attempt to add the torrent will be made asynchronously", allocator);
-			http_status = "http/1.1 202 Accepted\r\n";
-		}	
-		else {
-			document.AddMember("success", false, allocator);	
-			document.AddMember("status", "Could not add torrent", allocator);
-			http_status = "http/1.1 400 Bad Request\r\n";
-		}
-
-		rapidjson::StringBuffer string_buffer;
-		rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(string_buffer);
-		document.Accept(writer);
-		std::string json = string_buffer.GetString();
-		
-		*response << http_status
-				<< "Content-Length: " << json.length() << "\r\n\r\n"
-				<< json;
-
-				*/
 	}
-	catch(const std::exception &e) {
-		*response << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << strlen(e.what()) << "\r\n\r\n"
-					<< e.what();	
-		LOG_DEBUG << "HTTP Bad Request: " << e.what();
+	
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_header;
+	std::string http_status;
+	std::stringstream ss_response;
+	if(error_code == 0) {
+		char const *message = "An attempt to add the torrents will be made asynchronously";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+
+		std::string json = stringfy_document(document);	
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "202 Accepted";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	/* TODO - Another design limitation with error codes here. The http_status should be determined by the error code. For example, sometimes we need 500 and sometimes we need 400 and the error code should contain that information. Error codes NEED TO be an object of some kind to add make this happen.*/
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", error_code, allocator);
+		char const *message = error_codes.find(error_code)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
 }
 
@@ -1139,7 +1167,7 @@ void RestAPI::webUI_get(std::shared_ptr<HttpServer::Response> response, std::sha
 		auto path = boost::filesystem::canonical(web_root_path / request->path);
 		// Check if path is within web_root_path
 		if(std::distance(web_root_path.begin(), web_root_path.end()) > std::distance(path.begin(), path.end()) ||
-		!std::equal(web_root_path.begin(), web_root_path.end(), path.begin()))
+				!std::equal(web_root_path.begin(), web_root_path.end(), path.begin()))
 			throw std::invalid_argument("path must be within root path");
 		if(boost::filesystem::is_directory(path))
 			path /= "index.html";
@@ -1149,7 +1177,7 @@ void RestAPI::webUI_get(std::shared_ptr<HttpServer::Response> response, std::sha
 		//    Uncomment the following line to enable Cache-Control
 		//    header.emplace("Cache-Control", "max-age=86400");
 
-		#ifdef HAVE_OPENSSL
+#ifdef HAVE_OPENSSL
 		//    Uncomment the following lines to enable ETag
 		//    {
 		//      ifstream ifs(path.string(), ifstream::in | ios::binary);
@@ -1167,7 +1195,7 @@ void RestAPI::webUI_get(std::shared_ptr<HttpServer::Response> response, std::sha
 		//      else
 		//        throw invalid_argument("could not read file");
 		//    }
-		#endif
+#endif
 
 		auto ifs = std::make_shared<std::ifstream>();
 		ifs->open(path.string(), std::ifstream::in | std::ios::binary | std::ios::ate);
@@ -1181,23 +1209,23 @@ void RestAPI::webUI_get(std::shared_ptr<HttpServer::Response> response, std::sha
 
 			// Trick to define a recursive function within this scope (for your convenience)
 			class FileServer {
-			public:
-				static void read_and_send(const std::shared_ptr<HttpServer::Response> &response, const std::shared_ptr<std::ifstream> &ifs) {
-					// Read and send 128 KB at a time
-					static std::vector<char> buffer(131072); // Safe when server is running on one thread
-					std::streamsize read_length;
-					if((read_length = ifs->read(&buffer[0], buffer.size()).gcount()) > 0) {
-						response->write(&buffer[0], read_length);
-						if(read_length == static_cast<std::streamsize>(buffer.size())) {
-							response->send([response, ifs](const SimpleWeb::error_code &ec) {
-								if(!ec)
-									read_and_send(response, ifs);
-								else
-									std::cerr << "Connection interrupted" << std::endl;
-							});
+				public:
+					static void read_and_send(const std::shared_ptr<HttpServer::Response> &response, const std::shared_ptr<std::ifstream> &ifs) {
+						// Read and send 128 KB at a time
+						static std::vector<char> buffer(131072); // Safe when server is running on one thread
+						std::streamsize read_length;
+						if((read_length = ifs->read(&buffer[0], buffer.size()).gcount()) > 0) {
+							response->write(&buffer[0], read_length);
+							if(read_length == static_cast<std::streamsize>(buffer.size())) {
+								response->send([response, ifs](const SimpleWeb::error_code &ec) {
+										if(!ec)
+										read_and_send(response, ifs);
+										else
+										std::cerr << "Connection interrupted" << std::endl;
+										});
+							}
 						}
 					}
-				}
 			};
 			FileServer::read_and_send(response, ifs);
 		}
@@ -1232,14 +1260,14 @@ void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response
 	e.AddMember("message", rapidjson::StringRef(message), allocator);
 	errors.PushBack(e, allocator);
 	document.AddMember("errors", errors, allocator);
-	
+
 	std::string json = stringfy_document(document);
 
 	std::string http_status = "401 Unauthorized";
 	std::string http_header = "Content-Length: " + std::to_string(json.length());
 
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
-	
+
 	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 		<< " to " << request->remote_endpoint_address() << " Message: " << message;
 }
@@ -1274,14 +1302,14 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 	e.AddMember("parameter", rapidjson::StringRef(parameter.c_str()), allocator);
 	errors.PushBack(e, allocator);
 	document.AddMember("errors", errors, allocator);
-	
+
 	std::string json = stringfy_document(document);
-		
+
 	std::string http_status = "400 Bad Request";
 	std::string http_header = "Content-Length: " + std::to_string(json.length());
 
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
-	
+
 	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 		<< " to " << request->remote_endpoint_address() << " Message: " << message;
 }
@@ -1309,7 +1337,7 @@ bool RestAPI::validate_parameter(SimpleWeb::CaseInsensitiveMultimap const &query
 		return false;
 	}
 	if(!is_parameter_format_valid(it_query, parameter_format)) {
-		  return false;
+		return false;
 	}
 	if(allowed_values.empty()) {
 		return true;
@@ -1385,12 +1413,12 @@ bool RestAPI::is_authorization_valid(std::string authorization_base64) {
 	sqlite3_bind_text(stmt, 1, username.c_str(), username.size(), SQLITE_STATIC);
 	while((ret_code = sqlite3_step(stmt)) == SQLITE_ROW) {
 		id = sqlite3_column_int(stmt, 0);
-	       	username_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+		username_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
 		password_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
 		salt_db = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3));
 		found = true;
 	}
-	
+
 	if(!found) {
 		LOG_DEBUG << "Authorization for user " << username << " denied." << " User not found in database.";
 		sqlite3_finalize(stmt);

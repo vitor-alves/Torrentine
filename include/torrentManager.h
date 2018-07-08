@@ -30,7 +30,7 @@ private:
 public:
 	TorrentManager(ConfigManager &config);
 	~TorrentManager();
-	bool add_torrent_async(const lt::add_torrent_params &atp);
+	void add_torrent_async(const lt::add_torrent_params &atp);
 	void check_alerts(lt::alert *a = NULL);
 	void update_torrent_console_view();
 	unsigned long int get_torrents_status(std::vector<lt::torrent_status> &torrents_status, std::vector<unsigned long int> ids);

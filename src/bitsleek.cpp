@@ -47,8 +47,6 @@ int main(int argc, char const* argv[])
 	torrent_manager.load_session_state();
 	torrent_manager.load_session_extensions();
 	torrent_manager.load_fastresume();
-	add_test_torrents(torrent_manager, config);
-	
 
 	RestAPI api(config, torrent_manager);
 	api.start_server();
@@ -132,21 +130,4 @@ bool initialize_log(ConfigManager &config) {
 	plog::init(log_severity, log_file_path.c_str(), log_max_size, log_max_files);
 	LOG_DEBUG << "Log initialized";
 	return true;
-}
-
-void add_test_torrents(TorrentManager &torrent_manager, ConfigManager &config) {	
-	std::string download_path = "./";
-
-	try {
-		download_path = config.get_config<std::string>("directory.download_path");
-	}
-	catch(const config_key_error &e) {
-		LOG_ERROR << "Test torrents were not added. Could not get config: " << e.what();
-		return;
-	}
-	// TODO - adapt this to the new function that accepts an atp
-	//bool success_t1 = torrent_manager.add_torrent_async("test/sample_torrents/debian-9.1.0-amd64-i386-netinst.iso.torrent", download_path);
-	//bool success_t2 = torrent_manager.add_torrent_async("test/sample_torrents/debian-9.1.0-amd64-netinst.iso.torrent", download_path);
-	//bool success_t3 = torrent_manager.add_torrent_async("test/sample_torrents/Royalty.Free.Background.Music.Pack.torrent", download_path);
-	LOG_DEBUG << "Added test torrents";
 }
