@@ -71,8 +71,7 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ 
 
-			std::string resp = "CORS is enabled";
-
+			std::string resp;
 			std::string http_header;
 			std::string http_status;
 			
@@ -89,6 +88,8 @@ void RestAPI::define_resources() {
 			std::string request_methods_str = request_methods_str_default;
 			std::string credentials_str = request_credentials_str_default;
 			if(enable_CORS) {
+				resp = "CORS is enabled";
+
 				auto header = SimpleWeb::HttpHeader::parse(request->content);
 				
 				auto origin = header.find("Origin");
@@ -110,6 +111,9 @@ void RestAPI::define_resources() {
 				http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
 				http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
 				http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+			}
+			else {
+				resp = "CORS is disabled";
 			}
 		
 			http_header += "Content-Length: " + std::to_string(resp.length()) + "\r\n";
