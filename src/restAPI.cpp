@@ -898,9 +898,6 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 		return;
 	}
 
-
-	LOG_DEBUG << "ED" << request->header.size();
-
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	// TODO - Inefficient. When ids.size() = 0 should be treated inside the calls, not here.
 	if(ids.size() == 0) // If no ids were specified, consider all ids
@@ -1085,7 +1082,7 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 	}
 }
 
-void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {	
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
 		return;
@@ -1376,12 +1373,10 @@ int RestAPI::parse_request_to_atp(std::shared_ptr<HttpServer::Request> request, 
 }
 
 void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
-	/*
-	   if(!validate_authorization(request)) {
+	if(!validate_authorization(request)) {
 	   respond_invalid_authorization(response, request);
 	   return;
-	   }
-	   */
+	}
 
 	std::vector<lt::add_torrent_params> parsed_atps;
 	int error_code = parse_request_to_atp(request, parsed_atps);
@@ -1613,7 +1608,7 @@ void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response
 
 	http_header += "Content-Length: " + std::to_string(json.length()) + "\r\n";
 
-	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
+	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << json;
 
 	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 		<< " to " << request->remote_endpoint_address() << " Message: " << message;
@@ -1685,10 +1680,11 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 
 	http_header += "Content-Length: " + std::to_string(json.length()) + "\r\n";
 
-	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
-
 	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
 		<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << json;
+
 }
 
 bool RestAPI::is_parameter_format_valid(SimpleWeb::CaseInsensitiveMultimap::iterator const it_query, int const parameter_format) {
