@@ -63,6 +63,64 @@ void RestAPI::stop_server() {
 
 // WARNING: do not add or remove resources after start() is called
 void RestAPI::define_resources() {
+	/* Allow CORS (Cross Origin Request) - OPTIONS
+	 * https://stackoverflow.com/questions/29954037/why-is-an-options-request-sent-and-can-i-disable-it
+	 * https://husobee.github.io/golang/cors/2015/09/26/cors.html */
+	/* Allow CORS (Cross Origin Request) - OPTIONS */
+	server.resource["^.*$"]["OPTIONS"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ 
+
+			std::string resp = "CORS is enabled";
+
+			std::string http_header;
+			std::string http_status;
+			
+			/* TODO - This is currently not used (its enabled but does not work as expected cuz header is empty) because I think there is a bug here. 
+			 * request->header in always empty! I opened and issue.
+			 * https://gitlab.com/eidheim/Simple-Web-Server/issues/233
+			 * After this is fixed the variables here should be used to write the
+			 * http header in the response. Allow-origin should use origin_str,
+			 * Allow-methods should use request_headers_str,
+			 * allow-headers should use request_methods_str.
+			 * Currently this is hard coded... */
+			std::string origin_str = origin_str_default ;
+			std::string request_headers_str = request_headers_str_default;
+			std::string request_methods_str = request_methods_str_default;
+			std::string credentials_str = request_credentials_str_default;
+			if(enable_CORS) {
+				auto header = SimpleWeb::HttpHeader::parse(request->content);
+				
+				auto origin = header.find("Origin");
+				if(origin != header.end()) {
+					origin_str = origin->second;
+				}
+
+				auto request_headers = header.find("Access-Control-Request-Headers");
+				if(request_headers != header.end()) {
+					request_headers_str = request_headers->second;
+				}
+				
+				auto request_methods = header.find("Access-Control-Request-Method");
+				if(request_methods != header.end()) {
+					request_methods_str = request_methods->second;
+				}
+
+				http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+				http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+				http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+				http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+			}
+		
+			http_header += "Content-Length: " + std::to_string(resp.length()) + "\r\n";
+			http_status = "200 OK";
+
+			LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+				<< " to " << request->remote_endpoint_address();
+
+			*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << resp;
+		};
+
 	/* /torrents/<id>/stop - PATCH */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
@@ -170,10 +228,38 @@ void RestAPI::torrents_recheck(std::shared_ptr<HttpServer::Response> response, s
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.recheck_torrents(ids);
 
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
@@ -248,10 +334,38 @@ void RestAPI::torrents_stop(std::shared_ptr<HttpServer::Response> response, std:
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.stop_torrents(ids, str_to_bool(optional_parameters.find("force_stop")->second.value));
 
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
@@ -324,10 +438,38 @@ void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shar
 	std::vector<char> buffer;
 	bool result = file_to_buffer(buffer, log_path.string());
 
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == true) {
@@ -394,10 +536,38 @@ void RestAPI::torrents_peers_get(std::shared_ptr<HttpServer::Response> response,
 		ids = torrent_manager.get_all_ids(); 
 	unsigned long int result = torrent_manager.get_peers_torrents(requested_torrent_peers, ids);
 
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
@@ -502,10 +672,38 @@ void RestAPI::torrents_files_get(std::shared_ptr<HttpServer::Response> response,
 		ids = torrent_manager.get_all_ids(); // TODO - use this same approach in all other API calls and reduce the redundant code in the action methods. This way we do not need to treat ids empty differently than ids non empty in the action method, cuz its always non empty (if torrents exist). 
 	unsigned long int result = torrent_manager.get_files_torrents(requested_torrent_files, ids, str_to_bool(optional_parameters.find("piece_granularity")->second.value));
 
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
@@ -598,11 +796,39 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	unsigned long int result = torrent_manager.start_torrents(ids);
+			
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
 
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
@@ -668,6 +894,9 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 		return;
 	}
 
+
+	LOG_DEBUG << "ED" << request->header.size();
+
 	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
 	// TODO - Inefficient. When ids.size() = 0 should be treated inside the calls, not here.
 	if(ids.size() == 0) // If no ids were specified, consider all ids
@@ -675,10 +904,38 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 	std::vector<lt::torrent_status> torrents_status;
 	unsigned long int result = torrent_manager.get_torrents_status(torrents_status, ids);
 
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
@@ -783,6 +1040,7 @@ void RestAPI::torrents_status_get(std::shared_ptr<HttpServer::Response> response
 		else {
 			ss_response << json;
 		}
+		
 		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
 		http_header += "Content-Type: application/json\r\n";
 		http_status = "200 OK";
@@ -843,10 +1101,38 @@ void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, st
 
 	unsigned long int result = torrent_manager.remove_torrent(ids, str_to_bool(optional_parameters.find("remove_data")->second.value));
 
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
@@ -1101,11 +1387,39 @@ void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::
 			torrent_manager.add_torrent_async(atp);
 		}
 	}
-	
+
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
 	rapidjson::Document document;
 	document.SetObject();
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
-	std::string http_header;
 	std::string http_status;
 	std::stringstream ss_response;
 	if(error_code == 0) {
@@ -1264,7 +1578,36 @@ void RestAPI::respond_invalid_authorization(std::shared_ptr<HttpServer::Response
 	std::string json = stringfy_document(document);
 
 	std::string http_status = "401 Unauthorized";
-	std::string http_header = "Content-Length: " + std::to_string(json.length());
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
+	http_header += "Content-Length: " + std::to_string(json.length()) + "\r\n";
 
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 
@@ -1306,7 +1649,37 @@ void RestAPI::respond_invalid_parameter(std::shared_ptr<HttpServer::Response> re
 	std::string json = stringfy_document(document);
 
 	std::string http_status = "400 Bad Request";
-	std::string http_header = "Content-Length: " + std::to_string(json.length());
+
+	std::string http_header;
+	std::string origin_str = origin_str_default ;
+	std::string request_headers_str = request_headers_str_default;
+	std::string request_methods_str = request_methods_str_default;
+	std::string credentials_str = request_credentials_str_default;
+	if(enable_CORS) {
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		auto request_headers = header.find("Access-Control-Request-Headers");
+		if(request_headers != header.end()) {
+			request_headers_str = request_headers->second;
+		}
+		
+		auto request_methods = header.find("Access-Control-Request-Method");
+		if(request_methods != header.end()) {
+			request_methods_str = request_methods->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+		http_header += "Access-Control-Allow-Methods: " + request_methods_str  + "\r\n";
+		http_header += "Access-Control-Allow-Headers: " + request_headers_str  + "\r\n";
+	}
+
+	http_header += "Content-Length: " + std::to_string(json.length()) + "\r\n";
 
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n\r\n" << json;
 

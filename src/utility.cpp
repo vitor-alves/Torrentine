@@ -103,7 +103,7 @@ std::string generate_password_hash(const char* pass, const unsigned char* salt) 
 	uint32_t hexResult_size = 2*outputBytes+1; // 2*outputBytes+1 is 2 hex bytes per binary byte and one character at the end for the string-terminating \0
 	char hexResult[hexResult_size];
 	PBKDF2_HMAC_SHA_512_string(pass, salt, iterations, outputBytes, hexResult);
-	
+
 	return std::string(hexResult, hexResult_size-1); // -1 to ignore '\0'. We dont need it in std::strings
 }
 
@@ -145,20 +145,20 @@ bool is_text_double_number(std::string const s) {
 
 bool download_file(const char* url, const char* file_name) {
 
-	  CURL* easyhandle = curl_easy_init();
+	CURL* easyhandle = curl_easy_init();
 
-  curl_easy_setopt( easyhandle, CURLOPT_URL, url ) ;
+	curl_easy_setopt( easyhandle, CURLOPT_URL, url ) ;
 
-  FILE* file = fopen( file_name, "w");
+	FILE* file = fopen( file_name, "w");
 
-  curl_easy_setopt( easyhandle, CURLOPT_WRITEDATA, file) ;
+	curl_easy_setopt( easyhandle, CURLOPT_WRITEDATA, file) ;
 
-  curl_easy_perform( easyhandle );
+	curl_easy_perform( easyhandle );
 
-  curl_easy_cleanup( easyhandle );
+	curl_easy_cleanup( easyhandle );
 
-  fclose(file);
+	fclose(file);
 
-  	return true;
+	return true;
 
 }

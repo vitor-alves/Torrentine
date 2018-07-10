@@ -33,6 +33,12 @@ private:
 	};
 
 private:
+	bool const enable_CORS = true; // TODO - This should be in configs
+	// The following values are supposed to be overriden by the respective values in the request header.
+	std::string const origin_str_default = "http://localhost:8000";
+	std::string const request_headers_str_default = "Authorization";
+	std::string const request_methods_str_default = "GET,HEAD,PUT,POST,PATCH,DELETE,CONNECT,TRACE,OPTIONS";
+	std::string const request_credentials_str_default = "true";
 	HttpServer server;
 	std::unique_ptr<std::thread> server_thread;
 	TorrentManager& torrent_manager;
