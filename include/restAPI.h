@@ -58,9 +58,7 @@ private:
 								{3220, "no valid torrent file HTTP URL was found"},
 								{3230, "server could not download torrent file from HTTP URL"},
 								{3240, "there seems to be a problem with the provided torrent file"},
-								{3250, "could not get trackers"},
-								{3260, "could not get session status"}
-	};
+								{3250, "could not get trackers"} };
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> const request);
 	std::string stringfy_document(rapidjson::Document const &document, bool const pretty=true);
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request,

@@ -57,7 +57,7 @@ public:
 	void load_session_settings();
 	void load_session_extensions();
 	void post_session_stats();
-	SessionStatus& get_session_status();
+	SessionStatus const get_session_status();
 };
 
 #endif

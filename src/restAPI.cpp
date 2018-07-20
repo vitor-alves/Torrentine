@@ -166,6 +166,11 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_trackers_get(response, request); };
 
+	/* /session/status - GET */
+	server.resource["^/v1.0/session/status$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->session_status_get(response, request); };
+
 	/* / - GET WEB UI*/
 	server.default_resource["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
@@ -1701,6 +1706,7 @@ void RestAPI::torrents_trackers_get(std::shared_ptr<HttpServer::Response> respon
 	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
 	std::string http_status;
 	std::stringstream ss_response;
+	// TODO - change the name of the variables here. I copied it from elsewhere
 	if(result == 0) {
 		char const *message = "Succesfuly retrieved torrent trackers";
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
@@ -1756,8 +1762,8 @@ void RestAPI::torrents_trackers_get(std::shared_ptr<HttpServer::Response> respon
 	else {
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 3140, allocator);
-		char const *message = error_codes.find(3140)->second.c_str();
+		e.AddMember("code", 3250, allocator);
+		char const *message = error_codes.find(3250)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
@@ -1782,4 +1788,84 @@ void RestAPI::torrents_trackers_get(std::shared_ptr<HttpServer::Response> respon
 
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 	}
+}
+
+void RestAPI::session_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	SessionStatus session_status = torrent_manager.get_session_status();
+
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	// TODO - change the name of the variables here. I copied it from elsewhere
+	char const *message = "Succesfuly retrieved session status";
+	document.AddMember("message", rapidjson::StringRef(message), allocator);
+	rapidjson::Value session(rapidjson::kObjectType);
+	rapidjson::Value status(rapidjson::kObjectType);
+	status.AddMember("has_incoming_connections", session_status.has_incoming_connections, allocator);
+	status.AddMember("upload_rate", session_status.upload_rate, allocator);
+	status.AddMember("download_rate", session_status.download_rate, allocator);
+	status.AddMember("total_download", session_status.total_download, allocator);
+	status.AddMember("total_upload", session_status.total_upload, allocator);
+	status.AddMember("total_payload_download", session_status.total_payload_download, allocator);
+	status.AddMember("total_payload_upload", session_status.total_payload_upload, allocator);
+	status.AddMember("payload_download_rate", session_status.payload_download_rate, allocator);
+	status.AddMember("payload_upload_rate", session_status.payload_upload_rate, allocator);
+	status.AddMember("ip_overhead_upload_rate", session_status.ip_overhead_upload_rate, allocator);
+	status.AddMember("ip_overhead_download_rate", session_status.ip_overhead_download_rate, allocator);
+	status.AddMember("ip_overhead_upload", session_status.ip_overhead_upload, allocator);
+	status.AddMember("ip_overhead_download", session_status.ip_overhead_download, allocator);
+	status.AddMember("dht_upload_rate", session_status.dht_upload_rate, allocator);
+	status.AddMember("dht_download_rate", session_status.dht_download_rate, allocator);
+	status.AddMember("dht_nodes", session_status.dht_nodes, allocator);
+	status.AddMember("dht_upload", session_status.dht_upload, allocator);
+	status.AddMember("dht_download", session_status.dht_download, allocator);
+	status.AddMember("tracker_upload_rate", session_status.tracker_upload_rate, allocator);
+	status.AddMember("tracker_download_rate", session_status.tracker_download_rate, allocator);
+	status.AddMember("tracker_upload", session_status.tracker_upload, allocator);
+	status.AddMember("tracker_download", session_status.tracker_download, allocator);
+	status.AddMember("num_peers_connected", session_status.num_peers_connected, allocator);
+	status.AddMember("num_peers_half_open", session_status.num_peers_half_open, allocator);
+	status.AddMember("total_peers_connections", session_status.total_peers_connections, allocator);
+	session.AddMember("status", status, allocator);		
+	document.AddMember("session", session, allocator);
+
+	std::string json = stringfy_document(document);	
+
+	if(accepts_gzip_encoding(request->header)) {
+		ss_response << gzip_encode(json);
+		http_header += "Content-Encoding: gzip\r\n";
+	}
+	else {
+		ss_response << json;
+	}
+	http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+	http_header += "Content-Type: application/json\r\n";
+	http_status = "200 OK";
+
+	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+		<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 }

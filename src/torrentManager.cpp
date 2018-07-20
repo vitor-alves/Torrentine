@@ -740,7 +740,7 @@ void TorrentManager::post_session_stats() {
 	session.post_session_stats();
 }
 
-SessionStatus& TorrentManager::get_session_status() {
+SessionStatus const TorrentManager::get_session_status() {
 	return session_status;
 
 }
