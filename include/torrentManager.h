@@ -6,11 +6,13 @@
 #include <libtorrent/bencode.hpp>
 #include <libtorrent/lazy_entry.hpp>
 #include <libtorrent/peer_info.hpp>
-#include "libtorrent/session_handle.hpp"
-#include "libtorrent/hasher.hpp"
+#include <libtorrent/session_handle.hpp>
+#include <libtorrent/hasher.hpp>
+#include <libtorrent/announce_entry.hpp>
 #include <boost/filesystem.hpp>
 #include "torrent.h"
 #include "config.h"
+#include "sessionStatus.hpp"
 
 #ifndef TORRENT_MANAGER_H
 #define TORRENT_MANAGER_H
@@ -27,6 +29,8 @@ private:
 	unsigned long int outstanding_resume_data;
 	lt::add_torrent_params read_resume_data(lt::bdecode_node const& rd, lt::error_code& ec);
 	ConfigManager &config;
+	SessionStatus session_status;
+	std::chrono::steady_clock::time_point interval_last_point = std::chrono::steady_clock::now();
 public:
 	TorrentManager(ConfigManager &config);
 	~TorrentManager();
@@ -40,6 +44,7 @@ public:
 	std::vector<unsigned long int> get_all_ids();
 	unsigned long int get_files_torrents(std::vector<std::vector<Torrent::torrent_file>> &torrent_files, const std::vector<unsigned long int> ids, bool piece_granularity);
 	unsigned long int get_peers_torrents(std::vector<std::vector<Torrent::torrent_peer>> &torrent_peers, const std::vector<unsigned long int> ids);
+	unsigned long int get_trackers_torrents(std::vector<std::vector<lt::announce_entry>> &torrent_trackers, const std::vector<unsigned long int> ids);
 	unsigned long int get_status_torrents(std::vector<lt::torrent_status> &torrent_status, const std::vector<unsigned long int> ids);
 	unsigned long int recheck_torrents(const std::vector<unsigned long int> ids);
 	unsigned long int start_torrents(const std::vector<unsigned long int> ids);	
@@ -51,6 +56,8 @@ public:
 	void pause_session();
 	void load_session_settings();
 	void load_session_extensions();
+	void post_session_stats();
+	SessionStatus& get_session_status();
 };
 
 #endif

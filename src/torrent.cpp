@@ -75,6 +75,20 @@ std::vector<Torrent::torrent_peer> Torrent::get_torrent_peers() {
 	return torrent_peers;
 }
 
+std::vector<lt::announce_entry> Torrent::get_torrent_trackers() {
+	std::vector<lt::announce_entry> torrent_trackers;
+	
+	try {
+		torrent_trackers = handle.trackers(); // TODO - treat exceptions in ALL references to handle in other parts of the code. Read about invalid_handle exception here: https://www.libtorrent.org/reference-Core.html#torrent_handle 
+	}
+	catch(const lt::libtorrent_exception &e) {
+		LOG_ERROR << "Could not get torrent trackers info";
+		return std::vector<lt::announce_entry>();
+	}
+
+	return torrent_trackers;
+}
+
 Torrent::~Torrent() {
 }
 

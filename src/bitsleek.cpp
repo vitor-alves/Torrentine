@@ -52,10 +52,15 @@ int main(int argc, char const* argv[])
 	api.start_server();
 
 	std::chrono::steady_clock::time_point last_save_fastresume = std::chrono::steady_clock::now();
+	std::chrono::steady_clock::time_point last_post_session_stats = std::chrono::steady_clock::now();
 	signal(SIGINT, shutdown_program);
 	while(!shutdown_flag) {
 		torrent_manager.update_torrent_console_view();
 		torrent_manager.check_alerts();
+		if(std::chrono::steady_clock::now() - last_post_session_stats > std::chrono::seconds(2)) {
+			torrent_manager.post_session_stats();
+			last_post_session_stats  = std::chrono::steady_clock::now();
+		} 
 		torrent_manager.wait_for_alert(lt::milliseconds(1000));	
 		// TODO - Ideally saving fastresume periodically should be done outside the main thread because this may take some time, but there
 		// are some special cases that need to be addressed before putting this in another thread. Libtorrent says:

@@ -34,11 +34,6 @@ private:
 
 private:
 	bool const enable_CORS = true; // TODO - This should be in configs
-	// The following values are supposed to be overriden by the respective values from the request header. Default values are for test only.
-	std::string const origin_str_default = "http://localhost:8000";
-	std::string const request_headers_str_default = "Authorization";
-	std::string const request_methods_str_default = "GET,HEAD,PUT,POST,PATCH,DELETE,CONNECT,TRACE,OPTIONS";
-	std::string const request_credentials_str_default = "true";
 	HttpServer server;
 	std::unique_ptr<std::thread> server_thread;
 	TorrentManager& torrent_manager;
@@ -62,7 +57,9 @@ private:
 								{3210, "could not find filename field in header"},
 								{3220, "no valid torrent file HTTP URL was found"},
 								{3230, "server could not download torrent file from HTTP URL"},
-								{3240, "there seems to be a problem with the provided torrent file"}
+								{3240, "there seems to be a problem with the provided torrent file"},
+								{3250, "could not get trackers"},
+								{3260, "could not get session status"}
 	};
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> const request);
 	std::string stringfy_document(rapidjson::Document const &document, bool const pretty=true);
@@ -85,11 +82,13 @@ public:
 	void torrents_stop(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 	void torrents_files_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 	void torrents_peers_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void torrents_trackers_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_recheck(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 	void torrents_start(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);	
 	void torrents_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void session_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void webUI_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void get_logs(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);

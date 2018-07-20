@@ -9,6 +9,7 @@
 #include <libtorrent/extensions/ut_metadata.hpp>
 #include <libtorrent/extensions/ut_pex.hpp>
 #include <libtorrent/extensions/smart_ban.hpp>
+#include <libtorrent/session_stats.hpp>
 
 TorrentManager::TorrentManager(ConfigManager &config) : config(config) {
 	greatest_id = 1;
@@ -95,6 +96,92 @@ void TorrentManager::check_alerts(lt::alert *a) {
 			case lt::torrent_paused_alert::alert_type:
 			{
 		  		lt::torrent_paused_alert const * a_temp = lt::alert_cast<lt::torrent_paused_alert>(a);
+				break;
+			}
+			case lt::session_stats_alert::alert_type:
+			{
+		  		lt::session_stats_alert const * a_temp = lt::alert_cast<lt::session_stats_alert>(a);
+				SessionStatus last_session_status = session_status;
+
+				auto interval = std::chrono::duration_cast<std::chrono::milliseconds> (std::chrono::steady_clock::now() - interval_last_point).count();
+
+				int const index_has_incoming_connections = lt::find_metric_idx("net.has_incoming_connections");
+				if(index_has_incoming_connections != -1) {
+					session_status.has_incoming_connections = a_temp->values[index_has_incoming_connections];
+				}
+
+				int const index_sent_bytes = lt::find_metric_idx("net.sent_bytes");
+				if(index_sent_bytes != -1) {
+					session_status.total_upload = a_temp->values[index_sent_bytes];
+					session_status.upload_rate = (session_status.total_upload - last_session_status.total_upload)/(interval);				
+				}
+
+				int const index_recv_bytes = lt::find_metric_idx("net.recv_bytes");
+				if(index_recv_bytes != -1) {
+					session_status.total_download = a_temp->values[index_recv_bytes];
+					session_status.download_rate = (session_status.total_download - last_session_status.total_download)/(interval);				
+				}
+
+				int const index_sent_ip_overhead_bytes = lt::find_metric_idx("net.sent_ip_overhead_bytes");
+				if(index_sent_ip_overhead_bytes!= -1) {
+					session_status.ip_overhead_upload = a_temp->values[index_sent_ip_overhead_bytes];
+					session_status.ip_overhead_upload_rate = (session_status.ip_overhead_upload - last_session_status.ip_overhead_upload)/(interval);				
+				}
+
+				int const index_recv_ip_overhead_bytes = lt::find_metric_idx("net.recv_ip_overhead_bytes");
+				if(index_recv_ip_overhead_bytes!= -1) {
+					session_status.ip_overhead_download = a_temp->values[index_recv_ip_overhead_bytes];
+					session_status.ip_overhead_download_rate = (session_status.ip_overhead_download - last_session_status.ip_overhead_download)/(interval);				
+				}
+
+				int const index_dht_bytes_out = lt::find_metric_idx("dht.dht_bytes_out");
+				if(index_dht_bytes_out!= -1) {
+					session_status.dht_upload = a_temp->values[index_dht_bytes_out];
+					session_status.dht_upload_rate = (session_status.dht_upload - last_session_status.dht_upload)/(interval);				
+				}
+
+				int const index_dht_bytes_in = lt::find_metric_idx("dht.dht_bytes_in");
+				if(index_dht_bytes_in!= -1) {
+					session_status.dht_download = a_temp->values[index_dht_bytes_in];
+					session_status.dht_download_rate = (session_status.dht_download - last_session_status.dht_download)/(interval);				
+				}
+
+				int const index_dht_nodes = lt::find_metric_idx("dht.dht_nodes");
+				if(index_dht_nodes!= -1) {
+					session_status.dht_nodes = a_temp->values[index_dht_nodes];
+				}
+
+				int const index_tracker_upload = lt::find_metric_idx("net.sent_tracker_bytes");
+				if(index_tracker_upload!= -1) {
+					session_status.tracker_upload = a_temp->values[index_tracker_upload];
+					session_status.tracker_upload_rate = (session_status.tracker_upload - last_session_status.tracker_upload)/(interval);				
+				}
+
+				int const index_tracker_download = lt::find_metric_idx("net.recv_tracker_bytes");
+				if(index_tracker_download!= -1) {
+					session_status.tracker_download = a_temp->values[index_tracker_download];
+					session_status.tracker_download_rate = (session_status.tracker_download - last_session_status.tracker_download)/(interval);				
+				}
+
+				int const index_sent_payload_bytes = lt::find_metric_idx("net.sent_payload_bytes");
+				if(index_sent_payload_bytes != -1) {
+					session_status.total_payload_upload = a_temp->values[index_sent_payload_bytes];
+					session_status.payload_upload_rate = (session_status.total_payload_upload - last_session_status.total_payload_upload)/(interval);				
+				}
+
+				int const index_recv_payload_bytes = lt::find_metric_idx("net.recv_payload_bytes");
+				if(index_recv_payload_bytes != -1) {
+					session_status.total_payload_download = a_temp->values[index_recv_payload_bytes];
+					session_status.payload_download_rate = (session_status.total_payload_download - last_session_status.total_payload_download)/(interval);				
+				}
+
+				int const index_num_peers_connected = lt::find_metric_idx("peer.num_peers_connected");
+				int const index_num_peers_half_open = lt::find_metric_idx("peer.num_peers_half_open");
+				if(index_num_peers_connected != -1 && index_num_peers_half_open != -1) {
+					session_status.total_peers_connections = a_temp->values[index_num_peers_connected] + a_temp->values[index_num_peers_half_open];
+				}
+				
+				interval_last_point = std::chrono::steady_clock::now();
 				break;
 			}
 		}
@@ -279,6 +366,33 @@ unsigned long int TorrentManager::get_files_torrents(std::vector<std::vector<Tor
 			if((*it)->get_id() == id) {
 				std::vector<Torrent::torrent_file> tf = (*it)->get_torrent_files(piece_granularity);
 				torrent_files.push_back(tf);
+			}
+		}
+	}
+
+	return 0;
+}
+
+unsigned long int TorrentManager::get_trackers_torrents(std::vector<std::vector<lt::announce_entry>> &torrent_trackers, const std::vector<unsigned long int> ids) {
+	// TODO - put this check in a function and use it in all other API methods to reduce redundancy
+	// Check if all torrents in ids in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Get trackers from torrents in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				std::vector<lt::announce_entry> tt = (*it)->get_torrent_trackers();
+				torrent_trackers.push_back(tt);
 			}
 		}
 	}
@@ -619,4 +733,14 @@ unsigned long int TorrentManager::get_status_torrents(std::vector<lt::torrent_st
 	}
 
 	return 0;
+}
+
+
+void TorrentManager::post_session_stats() {
+	session.post_session_stats();
+}
+
+SessionStatus& TorrentManager::get_session_status() {
+	return session_status;
+
 }
