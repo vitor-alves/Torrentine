@@ -189,6 +189,7 @@ void TorrentManager::check_alerts(lt::alert *a) {
 }
 
 // TODO - function name in incorrect format
+// TODO - why there are 2 functions like this ? one called get_torrents_status and one called get_status_torrents
 unsigned long int TorrentManager::get_torrents_status(std::vector<lt::torrent_status> &torrents_status, std::vector<unsigned long int> ids) {
 
 	// No ids specified. Get all torrents status
@@ -630,7 +631,7 @@ void TorrentManager::load_session_settings() {
 	
 	// TODO - use others settings too. I will probably need to store settings in config file.	
 	lt::settings_pack pack;
-	pack.set_str(lt::settings_pack::user_agent, "Bitsleek 0.0.0"); // TODO - use global variable bitsleek_version
+	pack.set_str(lt::settings_pack::user_agent, "Torrentine 0.0.0"); // TODO - use global variable bitsleek_version
 	pack.set_int(lt::settings_pack::active_downloads, 5); // TODO - put this in config.ini (maybe this option is alreary in fastresume)
 	
 	session.apply_settings(pack);
@@ -743,4 +744,93 @@ void TorrentManager::post_session_stats() {
 SessionStatus const TorrentManager::get_session_status() {
 	return session_status;
 
+}
+
+lt::settings_pack const TorrentManager::get_session_settings() {
+	return session.get_settings();
+
+}
+
+unsigned long int TorrentManager::get_torrents_info(std::vector<boost::shared_ptr<const lt::torrent_info>> &torrents_info, const std::vector<unsigned long int> ids) {
+	// TODO - put this check in a function and use it in all other API methods to reduce redundancy
+	// Check if all torrents in ids in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Get info from torrents in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				boost::shared_ptr<const lt::torrent_info> ti = (*it)->get_torrent_info();
+				torrents_info.push_back(ti);
+			}
+		}
+	}
+
+	return 0;
+}
+
+unsigned long int TorrentManager::get_settings_torrents(std::vector<Torrent::torrent_settings> &torrent_settings, const std::vector<unsigned long int> ids) {
+
+	// TODO - put this check in a function and use it in all other API methods to reduce redundancy
+	// Check if all torrents in ids in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Get settings from torrents in ids
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				Torrent::torrent_settings ts = (*it)->get_torrent_settings();
+				torrent_settings.push_back(ts);
+			}
+		}
+	}
+
+	return 0;
+}
+
+unsigned long int TorrentManager::set_settings_torrents(std::vector<Torrent::torrent_settings> &torrent_settings, const std::vector<unsigned long int> ids) {
+
+	// TODO - put this check in a function and use it in all other API methods to reduce redundancy
+	// Check if all torrents in ids in fact exist
+	for(unsigned long int id : ids) {
+		bool found = false;
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				found = true;
+			}
+		}
+		if(!found)
+			return id;
+	}
+
+	// Set settings for torrents in ids
+	int index = 0;
+	for(unsigned long int id : ids) {
+		for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+			if((*it)->get_id() == id) {
+				(*it)->set_torrent_settings(torrent_settings.at(index));
+			}
+		}
+		index++;
+	}
+
+	return 0;
 }

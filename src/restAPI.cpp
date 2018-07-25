@@ -14,6 +14,7 @@
 #include <string>
 #include <sqlite3.h>
 #include "cpp-base64/base64.h"
+#include "rapidjson/error/en.h"
 
 RestAPI::RestAPI(ConfigManager &config, TorrentManager &torrent_manager) : torrent_manager(torrent_manager), config(config) {
 	try {
@@ -170,6 +171,26 @@ void RestAPI::define_resources() {
 	server.resource["^/v1.0/session/status$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->session_status_get(response, request); };
+
+	/* /session/settings - GET */
+	server.resource["^/v1.0/session/settings$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->session_settings_get(response, request); };
+
+	/* /session/torrents/<id>/info - GET */
+	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)info$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_info_get(response, request); };
+
+	/* /session/torrents/<id>/settings - GET */
+	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)settings$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_settings_get(response, request); };
+
+	/* /session/torrents/<id>/settings - PATCH */
+	server.resource["^/v1.0/session/torrents/settings$"]["PATCH"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_settings_set(response, request); };
 
 	/* / - GET WEB UI*/
 	server.default_resource["GET"] =
@@ -812,7 +833,6 @@ void RestAPI::torrents_start(std::shared_ptr<HttpServer::Response> response, std
 	}
 }
 
-// TODO - add a "ratio" field also in the json
 // TODO - some improvements are needed to make the json fields more readable.
 // 	- tests needed to check if everything is working fine.
 // 	TODO - lt::error_code errc, error_file, error_file_exception etc curently not used. Use this to inform the user of possible errors in the torrent. All other variables are used, except the ones regarding to errors. No errors are treated at the moment.
@@ -1868,4 +1888,418 @@ void RestAPI::session_status_get(std::shared_ptr<HttpServer::Response> response,
 		<< " to " << request->remote_endpoint_address() << " Message: " << message;
 
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+}
+
+void RestAPI::session_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	lt::settings_pack session_settings = torrent_manager.get_session_settings();
+
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	// TODO - change the name of the variables here. I copied it from elsewhere
+	char const *message = "Succesfuly retrieved session settings";
+	document.AddMember("message", rapidjson::StringRef(message), allocator);
+	rapidjson::Value session(rapidjson::kObjectType);
+	rapidjson::Value settings(rapidjson::kObjectType);
+	// TODO - there are A LOT of other fields that need to be here. Take a look at struct settings_pack
+	// https://www.libtorrent.org/reference-Settings.html#settings_pack
+	settings.AddMember("download_rate_limit", session_settings.get_int(lt::settings_pack::download_rate_limit), allocator);
+	settings.AddMember("upload_rate_limit", session_settings.get_int(lt::settings_pack::upload_rate_limit), allocator);
+	settings.AddMember("connections_limit", session_settings.get_int(lt::settings_pack::connections_limit), allocator);
+	settings.AddMember("active_seeds", session_settings.get_int(lt::settings_pack::active_seeds), allocator);
+	settings.AddMember("active_downloads", session_settings.get_int(lt::settings_pack::active_downloads), allocator);
+	settings.AddMember("active_limit", session_settings.get_int(lt::settings_pack::active_limit), allocator);
+	session.AddMember("settings", settings, allocator);		
+	document.AddMember("session", session, allocator);
+
+	std::string json = stringfy_document(document);	
+
+	if(accepts_gzip_encoding(request->header)) {
+		ss_response << gzip_encode(json);
+		http_header += "Content-Encoding: gzip\r\n";
+	}
+	else {
+		ss_response << json;
+	}
+	http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+	http_header += "Content-Type: application/json\r\n";
+	http_status = "200 OK";
+
+	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+		<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+}
+
+
+void RestAPI::torrents_info_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+	// TODO - Inefficient. When ids.size() = 0 should be treated inside the calls, not here.
+	if(ids.size() == 0) // If no ids were specified, consider all ids
+		ids = torrent_manager.get_all_ids(); 
+	std::vector<boost::shared_ptr<const lt::torrent_info>> torrents_info;
+	unsigned long int result = torrent_manager.get_torrents_info(torrents_info, ids);
+
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "Succesfuly retrieved torrent info";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		rapidjson::Value torrents(rapidjson::kObjectType);
+		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
+		for(boost::shared_ptr<const lt::torrent_info> ti : torrents_info) {
+			rapidjson::Value t(rapidjson::kObjectType);
+			rapidjson::Value s(rapidjson::kObjectType);
+			rapidjson::Value temp_value;
+			s.AddMember("total_size", ti->total_size(), allocator);
+			s.AddMember("num_pieces", ti->num_pieces(), allocator);
+			s.AddMember("piece_length", ti->piece_length(), allocator);
+			/* info_hash: If this handle is to a torrent that hasn't loaded yet (for instance by being added) by a URL,
+			   the returned value is undefined. */
+			std::stringstream ss_info_hash;
+			ss_info_hash << ti->info_hash();
+			std::string info_hash = ss_info_hash.str();
+			temp_value.SetString(info_hash.c_str(), info_hash.length(), allocator);
+			s.AddMember("info_hash", temp_value, allocator);	
+			s.AddMember("num_files", ti->num_files(), allocator);
+			temp_value.SetString(ti->ssl_cert().c_str(), ti->ssl_cert().length(), allocator);
+			s.AddMember("ssl_cert", temp_value, allocator);
+			s.AddMember("priv", ti->priv(), allocator);
+			s.AddMember("is_i2p", ti->is_i2p(), allocator);
+			s.AddMember("is_loaded", ti->is_loaded(), allocator);
+			if(ti->creation_date())
+				s.AddMember("creation_date", ti->creation_date().get(), allocator);
+			temp_value.SetString(ti->name().c_str(), ti->name().length(), allocator);
+			s.AddMember("name", temp_value, allocator);
+			temp_value.SetString(ti->comment().c_str(), ti->comment().length(), allocator);
+			s.AddMember("comment", temp_value, allocator);
+			temp_value.SetString(ti->creator().c_str(), ti->creator().length(), allocator);
+			s.AddMember("creator", temp_value, allocator);
+			t.AddMember("status", s, allocator);
+			std::string temp_id = std::to_string(*it_ids);
+			temp_value.SetString(temp_id.c_str(), temp_id.length(), allocator);
+			it_ids++;
+			torrents.AddMember(temp_value, t, allocator);
+		}
+		document.AddMember("torrents", torrents, allocator);
+
+		std::string json = stringfy_document(document);	
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3170, allocator);
+		char const *message = error_codes.find(3170)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
+void RestAPI::torrents_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	std::vector<unsigned long int> ids = split_string_to_ulong(request->path_match[1], ',');
+	// TODO - Inefficient. When ids.size() = 0 should be treated inside the calls, not here.
+	if(ids.size() == 0) // If no ids were specified, consider all ids
+		ids = torrent_manager.get_all_ids(); 
+	std::vector<Torrent::torrent_settings> torrents_settings;
+	unsigned long int result = torrent_manager.get_settings_torrents(torrents_settings, ids);
+
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "Succesfuly retrieved torrent settings";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		rapidjson::Value torrents(rapidjson::kObjectType);
+		std::vector<unsigned long int>::iterator it_ids= ids.begin();	
+		for(Torrent::torrent_settings ts : torrents_settings) {
+			rapidjson::Value t(rapidjson::kObjectType);
+			rapidjson::Value s(rapidjson::kObjectType);
+			rapidjson::Value temp_value;
+			if(ts.upload_limit)
+				s.AddMember("upload_limit", ts.upload_limit.get(), allocator);
+			if(ts.download_limit)
+				s.AddMember("download_limit", ts.download_limit.get(), allocator);
+			if(ts.sequential_download)
+				s.AddMember("sequential_download", ts.sequential_download.get(), allocator);
+			t.AddMember("settings", s, allocator);
+			std::string temp_id = std::to_string(*it_ids);
+			temp_value.SetString(temp_id.c_str(), temp_id.length(), allocator);
+			it_ids++;
+			torrents.AddMember(temp_value, t, allocator);
+		}
+		document.AddMember("torrents", torrents, allocator);
+
+		std::string json = stringfy_document(document);	
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3260, allocator);
+		char const *message = error_codes.find(3260)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
+void RestAPI::torrents_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	rapidjson::Document document;
+	rapidjson::ParseResult parse_ok = document.Parse(request->content.string().c_str());
+
+	if(!parse_ok) {
+		LOG_ERROR <<  "JSON parse error: " <<  rapidjson::GetParseError_En(parse_ok.Code()) << "(" << parse_ok.Offset() << ")";
+		// TODO - respond invalid json parse	
+	}
+	
+	std::vector<unsigned long int> ids;
+	std::vector<Torrent::torrent_settings> torrents_settings;
+	for(auto &torrent : document["torrents"].GetObject()) { // TODO - What if we cant find it in document? LOG and respond error
+		Torrent::torrent_settings ts;
+		for(auto &setting : document["torrents"][torrent.name]["settings"].GetObject()) { // TODO - What if we cant find it in document? LOG and respond error
+			std::string setting_name = setting.name.GetString();
+			rapidjson::Value &setting_value = setting.value;
+			if(setting_value.IsInt()) {
+				int value = setting_value.GetInt();
+				if(setting_name == "upload_limit")
+					ts.upload_limit = value;
+				else if(setting_name == "download_limit")
+					ts.download_limit = value;
+				else {
+					// TODO - Unknown setting name. Do something about that. Log and send response.
+				}
+			}
+			if(setting_value.IsBool()) {
+				bool value = setting_value.GetBool();
+				if(setting_name == "sequential_download")
+					ts.sequential_download = value;
+				else {
+					// TODO - Unknown setting name. Do something about that. Log and send response.
+				}
+			}
+
+			// TODO - stoul could go wrong. Treat this.
+			ids.push_back(std::stoul(torrent.name.GetString()));
+		       	torrents_settings.push_back(ts);	
+		}
+	}
+
+	unsigned long int result = torrent_manager.set_settings_torrents(torrents_settings, ids);
+
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	document = rapidjson::Document();
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "Succesfuly changed torrent settings";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		std::string json = stringfy_document(document);	
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3270, allocator);
+		char const *message = error_codes.find(3270)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
 }

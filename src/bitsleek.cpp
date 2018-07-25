@@ -92,7 +92,7 @@ void shutdown_program(int s) {
 }
 
 void parse_arguments(int const argc, char const* argv[], fs::path &config_file) {
-	po::options_description description("Bitsleek Usage");
+	po::options_description description("Torrentine Usage");
 	description.add_options()
 		("help,h", "Display this help message")
 		("version,v", "Display version information")

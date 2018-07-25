@@ -98,3 +98,34 @@ lt::torrent_status Torrent::get_torrent_status() {
 
 	return status;
 }
+
+boost::shared_ptr<const lt::torrent_info> Torrent::get_torrent_info() {
+	
+	boost::shared_ptr<const lt::torrent_info> ti = handle.torrent_file();
+
+	return ti;
+}
+
+Torrent::torrent_settings Torrent::get_torrent_settings() {
+
+	Torrent::torrent_settings ts;
+	ts.download_limit = handle.download_limit();
+	ts.upload_limit = handle.upload_limit();
+	ts.sequential_download = handle.status().sequential_download;
+
+	return ts;
+}
+
+void Torrent::set_torrent_settings(torrent_settings const ts) {
+	if(ts.upload_limit) {
+		handle.set_upload_limit(ts.upload_limit.get());
+	}
+	
+	if(ts.download_limit) {
+		handle.set_download_limit(ts.download_limit.get());
+	}
+
+	if(ts.sequential_download) {
+		handle.set_sequential_download(ts.sequential_download.get());
+	}
+}

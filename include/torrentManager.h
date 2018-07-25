@@ -13,6 +13,8 @@
 #include "torrent.h"
 #include "config.h"
 #include "sessionStatus.hpp"
+#include <libtorrent/settings_pack.hpp>
+
 
 #ifndef TORRENT_MANAGER_H
 #define TORRENT_MANAGER_H
@@ -45,6 +47,7 @@ public:
 	unsigned long int get_files_torrents(std::vector<std::vector<Torrent::torrent_file>> &torrent_files, const std::vector<unsigned long int> ids, bool piece_granularity);
 	unsigned long int get_peers_torrents(std::vector<std::vector<Torrent::torrent_peer>> &torrent_peers, const std::vector<unsigned long int> ids);
 	unsigned long int get_trackers_torrents(std::vector<std::vector<lt::announce_entry>> &torrent_trackers, const std::vector<unsigned long int> ids);
+	unsigned long int get_settings_torrents(std::vector<Torrent::torrent_settings> &torrent_settings, const std::vector<unsigned long int> ids);
 	unsigned long int get_status_torrents(std::vector<lt::torrent_status> &torrent_status, const std::vector<unsigned long int> ids);
 	unsigned long int recheck_torrents(const std::vector<unsigned long int> ids);
 	unsigned long int start_torrents(const std::vector<unsigned long int> ids);	
@@ -58,6 +61,9 @@ public:
 	void load_session_extensions();
 	void post_session_stats();
 	SessionStatus const get_session_status();
+	lt::settings_pack const get_session_settings();
+	unsigned long int get_torrents_info(std::vector<boost::shared_ptr<const lt::torrent_info>> &torrents_info, const std::vector<unsigned long int> ids);
+	unsigned long int set_settings_torrents(std::vector<Torrent::torrent_settings> &torrent_settings, const std::vector<unsigned long int> ids);
 };
 
 #endif
