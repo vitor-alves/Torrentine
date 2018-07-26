@@ -2494,7 +2494,7 @@ void RestAPI::session_queue_set(std::shared_ptr<HttpServer::Response> response, 
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
-		char const *message = "Succesfuly changed session settings";
+		char const *message = "Succesfuly changed queue position";
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
 		std::string json = stringfy_document(document);	
 		if(accepts_gzip_encoding(request->header)) {
@@ -2517,8 +2517,8 @@ void RestAPI::session_queue_set(std::shared_ptr<HttpServer::Response> response, 
 	else {
 		rapidjson::Value errors(rapidjson::kArrayType);
 		rapidjson::Value e(rapidjson::kObjectType);
-		e.AddMember("code", 3280, allocator);
-		char const *message = error_codes.find(3280)->second.c_str();
+		e.AddMember("code", 3290, allocator);
+		char const *message = error_codes.find(3290)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);

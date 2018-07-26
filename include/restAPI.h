@@ -61,7 +61,8 @@ private:
 								{3250, "could not get torrent trackers"},
 								{3260, "could not get torrent settings"},
 								{3270, "could not set torrent settings"},
-								{3280, "could not set session settings"}};
+								{3280, "could not set session settings"},
+								{3290, "could not set queue position"}};
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> const request);
 	std::string stringfy_document(rapidjson::Document const &document, bool const pretty=true);
 	void respond_invalid_parameter(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> const request,
