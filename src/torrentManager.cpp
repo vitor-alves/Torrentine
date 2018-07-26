@@ -845,3 +845,31 @@ unsigned long int TorrentManager::set_session_settings(lt::settings_pack const &
 
 	return 0;
 }
+
+unsigned long int TorrentManager::set_session_queue(std::string const queue_position, const std::vector<unsigned long int> ids) {
+
+	if(ids.size() != 1) {
+		// TODO - log/return error. only one id is allowed
+	}
+	unsigned long int id  =  ids.at(0);
+
+	// TODO - put this check in a function and use it in all other API methods to reduce redundancy
+	// Check if all torrents in ids in fact exist
+	bool found = false;
+	for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+		if((*it)->get_id() == id) {
+			found = true;
+		}
+	}
+	if(!found)
+		return id;
+
+	// Set queue for torrent
+	for(std::vector<std::shared_ptr<Torrent>>::iterator it = torrents.begin(); it != torrents.end(); it++) {
+		if((*it)->get_id() == id) {
+			(*it)->set_queue_position(queue_position);
+		}
+	}
+
+	return 0;
+}

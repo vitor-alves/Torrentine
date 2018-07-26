@@ -129,3 +129,25 @@ void Torrent::set_torrent_settings(torrent_settings const ts) {
 		handle.set_sequential_download(ts.sequential_download.get());
 	}
 }
+
+void Torrent::set_queue_position(std::string const queue_position) {
+	if(queue_position == "0") {
+		// Do nothing.
+	}
+	else if(queue_position == "down") {
+		handle.queue_position_down();
+	}
+	else if(queue_position == "up") {
+		handle.queue_position_up();
+	}
+	else if(queue_position == "bottom") {
+		handle.queue_position_bottom();
+	}
+	else if(queue_position == "top") {
+		handle.queue_position_top();
+	}
+	else {
+		int position = std::stoi(queue_position); // TODO - treat errors. What is string is not a number ? stoi will crash.
+		handle.queue_position_set(position); // TODO - test invalid numbers for position later. Negative numbers, higher than queue size, etc.
+	}
+}

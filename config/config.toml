@@ -6,9 +6,9 @@
 	database_path = "state/database/bitsleek.db"
 [libtorrent]
 	[libtorrent.extensions]
+		smart_ban_plugin = "enabled"
 		ut_metadata_plugin = "enabled"
 		ut_pex_plugin = "enabled"
-		smart_ban_plugin = "enabled"
 [api]
 	port = 8040
 	address = "0.0.0.0"

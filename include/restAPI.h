@@ -99,6 +99,7 @@ public:
 	void torrents_info_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void session_queue_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 };
 
 

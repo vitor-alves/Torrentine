@@ -56,6 +56,7 @@ public:
 	std::vector<lt::announce_entry> get_torrent_trackers();
 	lt::torrent_status get_torrent_status();
 	boost::shared_ptr<const lt::torrent_info> get_torrent_info();
+	void set_queue_position(std::string const queue_position);
 };
 
 #endif

@@ -64,6 +64,7 @@ public:
 	unsigned long int get_torrents_info(std::vector<boost::shared_ptr<const lt::torrent_info>> &torrents_info, const std::vector<unsigned long int> ids);
 	unsigned long int set_settings_torrents(std::vector<Torrent::torrent_settings> &torrent_settings, const std::vector<unsigned long int> ids);
 	unsigned long int set_session_settings(lt::settings_pack const &pack);
+	unsigned long int set_session_queue(std::string const queue_position, const std::vector<unsigned long int> ids);
 };
 
 #endif
