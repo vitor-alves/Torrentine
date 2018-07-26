@@ -43,7 +43,7 @@ int main(int argc, char const* argv[])
 	initialize_log(config);
 	
 	TorrentManager torrent_manager(config);
-	torrent_manager.load_session_settings();
+	//torrent_manager.load_session_settings();
 	torrent_manager.load_session_state();
 	torrent_manager.load_session_extensions();
 	torrent_manager.load_fastresume();

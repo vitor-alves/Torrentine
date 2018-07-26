@@ -449,10 +449,15 @@ bool TorrentManager::load_session_state() {
 		LOG_ERROR << "Could not load session state file at " << load_path.string();
 		return false;
 	}
-	lt::error_code ec;
+	lt::error_code ec; 
 	lt::bdecode_node node;
 	char const *buf = buffer.data();
 	lt::bdecode(buf, buf + buffer.size(), node, ec);
+	if(ec) {
+		LOG_ERROR << "Problem occurred while decoding fastresume buffer: " << ec.message();
+		return false;
+	}
+
 	session.load_state(node);
 	LOG_DEBUG << "Session state loaded";
 	return true;
@@ -590,7 +595,7 @@ void TorrentManager::load_fastresume() {
 		char const *fastresume_buf = fastresume_buffer.data();
 		int ret = lt::bdecode(fastresume_buf, fastresume_buf+fastresume_buffer.size(), fastresume_node, ec); 
 		if(ec) {
-			LOG_ERROR << "Problem occured while decoding fastresume buffer: " << ec.message();
+			LOG_ERROR << "Problem occurred while decoding fastresume buffer: " << ec.message();
 			continue;
 		}
 
@@ -625,7 +630,6 @@ lt::add_torrent_params TorrentManager::read_resume_data(lt::bdecode_node const& 
 void TorrentManager::pause_session() {
 	session.pause();
 }
-
 
 void TorrentManager::load_session_settings() {
 	
@@ -831,6 +835,13 @@ unsigned long int TorrentManager::set_settings_torrents(std::vector<Torrent::tor
 		}
 		index++;
 	}
+
+	return 0;
+}
+
+unsigned long int TorrentManager::set_session_settings(lt::settings_pack const &pack) {
+
+	session.apply_settings(pack);
 
 	return 0;
 }

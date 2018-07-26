@@ -15,7 +15,6 @@
 #include "sessionStatus.hpp"
 #include <libtorrent/settings_pack.hpp>
 
-
 #ifndef TORRENT_MANAGER_H
 #define TORRENT_MANAGER_H
 
@@ -64,6 +63,7 @@ public:
 	lt::settings_pack const get_session_settings();
 	unsigned long int get_torrents_info(std::vector<boost::shared_ptr<const lt::torrent_info>> &torrents_info, const std::vector<unsigned long int> ids);
 	unsigned long int set_settings_torrents(std::vector<Torrent::torrent_settings> &torrent_settings, const std::vector<unsigned long int> ids);
+	unsigned long int set_session_settings(lt::settings_pack const &pack);
 };
 
 #endif

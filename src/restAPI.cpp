@@ -192,6 +192,11 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_settings_set(response, request); };
 
+	/* /session/settings - PATCH */
+	server.resource["^/v1.0/session/settings$"]["PATCH"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->session_settings_set(response, request); };
+
 	/* / - GET WEB UI*/
 	server.default_resource["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
@@ -2198,6 +2203,7 @@ void RestAPI::torrents_settings_set(std::shared_ptr<HttpServer::Response> respon
 		// TODO - respond invalid json parse	
 	}
 	
+	// TODO - wrap this in a function	
 	std::vector<unsigned long int> ids;
 	std::vector<Torrent::torrent_settings> torrents_settings;
 	for(auto &torrent : document["torrents"].GetObject()) { // TODO - What if we cant find it in document? LOG and respond error
@@ -2278,6 +2284,119 @@ void RestAPI::torrents_settings_set(std::shared_ptr<HttpServer::Response> respon
 		rapidjson::Value e(rapidjson::kObjectType);
 		e.AddMember("code", 3270, allocator);
 		char const *message = error_codes.find(3270)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		e.AddMember("id", result, allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
+void RestAPI::session_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	rapidjson::Document document;
+	rapidjson::ParseResult parse_ok = document.Parse(request->content.string().c_str());
+
+	if(!parse_ok) {
+		LOG_ERROR <<  "JSON parse error: " <<  rapidjson::GetParseError_En(parse_ok.Code()) << "(" << parse_ok.Offset() << ")";
+		// TODO - respond invalid json parse	
+	}
+	
+	// TODO - wrap this in a function
+	lt::settings_pack pack;
+	for(auto &setting : document["session"]["settings"].GetObject()) { // TODO - What if we cant find it in document? LOG and respond error
+		std::string setting_name = setting.name.GetString();
+		rapidjson::Value &setting_value = setting.value;
+		if(setting_value.IsInt()) {
+			int value = setting_value.GetInt();
+			if(setting_name == "download_rate_limit")
+				pack.set_int(lt::settings_pack::download_rate_limit, value);
+			else if(setting_name == "upload_rate_limit")
+				pack.set_int(lt::settings_pack::upload_rate_limit, value);
+			else if(setting_name == "connections_limit")
+				pack.set_int(lt::settings_pack::connections_limit, value);
+			else if(setting_name == "active_seeds")
+				pack.set_int(lt::settings_pack::active_seeds, value);
+			else if(setting_name == "active_downloads")
+				pack.set_int(lt::settings_pack::active_downloads, value);
+			else if(setting_name == "active_limit")
+				pack.set_int(lt::settings_pack::active_limit, value);
+			else {
+				// TODO - Unknown setting name. Do something about that. Log and send response.
+			}
+		}
+	}
+	
+	unsigned long int result = torrent_manager.set_session_settings(pack);
+
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	document = rapidjson::Document();
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	if(result == 0) {
+		char const *message = "Succesfuly changed session settings";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		std::string json = stringfy_document(document);	
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", 3280, allocator);
+		char const *message = error_codes.find(3280)->second.c_str();
 		e.AddMember("message", rapidjson::StringRef(message), allocator);
 		e.AddMember("id", result, allocator);
 		errors.PushBack(e, allocator);
