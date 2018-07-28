@@ -2719,8 +2719,11 @@ void RestAPI::server_directory_get(std::shared_ptr<HttpServer::Response> respons
 }
 
 // TODO - This is INSECURE. The Client has access to the entire filesystem. Fix this allowing only access to the torrents folders and files.
-// TODO - As far as I know the video file here is being sent sequentially, therefore the client will have problems jumping forward in the torrent video stream (more noticeably in slower and remote connections). This is ok for now, another approach should be implemented soon. Search for HTTP 206 Partial Content and streaming!!
+// TODO - As far as I know the video file here is being sent sequentially, therefore the client will have problems jumping forward in the torrent video stream (more noticeably in slower and remote connections). This is ok for now, another approach should be implemented soon. Search for HTTP 206 Partial Content and streaming!! ( I am not sure about that. Test before in a slow, non localhost connection)
 void RestAPI::stream_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+
+	// TODO - VERY IMPORTANT. ADD THE AUTHORIZATION CHECK HERE. 
+
 	try {
 		std::map<std::string, api_parameter> required_parameters = {
 			{"path",{"path",".",api_parameter_format::text,{}}}
