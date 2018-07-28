@@ -1,4 +1,5 @@
 #include <boost/filesystem.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <fstream>
 #include <vector>
 #ifdef HAVE_OPENSSL
@@ -201,6 +202,21 @@ void RestAPI::define_resources() {
 	server.resource["^/v1.0/session/queue(?:/([0-9]+))$"]["PATCH"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->session_queue_set(response, request); };
+
+	/* /authorization - GET */
+	server.resource["^/v1.0/authorization$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
+		{ this->get_authorization(response, request); };
+
+	/* /server/filesystem/directory - GET */
+	server.resource["^/v1.0/server/filesystem/directory$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->server_directory_get(response, request); };
+
+	/* /stream - GET */
+	server.resource["^/v1.0/stream$"]["GET"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->stream_get(response, request); };
 
 	/* / - GET WEB UI*/
 	server.default_resource["GET"] =
@@ -1449,7 +1465,7 @@ void RestAPI::webUI_get(std::shared_ptr<HttpServer::Response> response, std::sha
 										if(!ec)
 										read_and_send(response, ifs);
 										else
-										std::cerr << "Connection interrupted" << std::endl;
+										std::cerr << "Connection interrupted" << std::endl; // TODO - log
 										});
 							}
 						}
@@ -2542,5 +2558,248 @@ void RestAPI::session_queue_set(std::shared_ptr<HttpServer::Response> response, 
 			<< " to " << request->remote_endpoint_address() << " Message: " << message;
 
 		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
+// TODO - this is TEMPORARY. a GET /authorization method to allow the front-end to verify the login. In the future we need to create a GET /token
+// similar to the PayPal API and work with access tokens. https://developer.paypal.com/docs/api/overview/#make-your-first-call
+// I dont like the way the responses to this request work. Improve. 
+void RestAPI::get_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	char const *message = "valid Authorization. Access allowed";
+	document.AddMember("message", rapidjson::StringRef(message), allocator);
+
+	std::string json = stringfy_document(document);	
+
+	if(accepts_gzip_encoding(request->header)) {
+		ss_response << gzip_encode(json);
+		http_header += "Content-Encoding: gzip\r\n";
+	}
+	else {
+		ss_response << json;
+	}
+	http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+	http_header += "Content-Type: application/json\r\n";
+	http_status = "200 OK";
+
+	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+		<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+}
+
+
+// TODO - in the future we should receive a parameter to describe if we want to send the directory files also. Currently it only
+// shows the directories inside the directory. This is sufficient for now, but in the future we will need this parameter to show the files also
+// I think.
+void RestAPI::server_directory_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+		respond_invalid_authorization(response, request);
+		return;
+	}
+
+	std::map<std::string, api_parameter> required_parameters = {
+		{"path",{"path",".",api_parameter_format::text,{}}}
+	};
+	std::map<std::string, api_parameter> optional_parameters = { };
+	SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
+	std::string invalid_parameter = validate_all_parameters(query, required_parameters, optional_parameters);
+	if(invalid_parameter.length() > 0) { 
+		respond_invalid_parameter(response, request, invalid_parameter);
+		return;
+	}
+
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	fs::path p = required_parameters.find("path")->second.value;
+	// TODO - What if user has no permission to read directory? Error? Test this.
+	if(fs::is_directory(p)) {
+		rapidjson::Value temp_value;
+
+		std::string parent_type = "directory";
+		temp_value.SetString(parent_type.c_str(), parent_type.length(), allocator);
+		document.AddMember("type", temp_value, allocator);
+
+		std::string parent_name = p.filename().string();
+		temp_value.SetString(parent_name.c_str(), parent_name.length(), allocator);
+		document.AddMember("name", temp_value, allocator);
+
+		std::string parent_path = (fs::canonical(p)).string();
+		temp_value.SetString(parent_path.c_str(), parent_path.length(), allocator);
+		document.AddMember("path", temp_value, allocator);
+
+		std::string parent_parent_path = (fs::canonical(p)).parent_path().string();
+		temp_value.SetString(parent_parent_path.c_str(), parent_parent_path.length(), allocator);
+		document.AddMember("parent_path", temp_value, allocator);
+
+		rapidjson::Value dir_content(rapidjson::kArrayType);
+		for(auto& entry : boost::make_iterator_range(fs::directory_iterator(p), {})) {
+			rapidjson::Value dir(rapidjson::kObjectType);
+			if(fs::is_directory(entry)) {
+				std::string parent_type = "directory";
+				temp_value.SetString(parent_type.c_str(), parent_type.length(), allocator);
+				dir.AddMember("type", temp_value, allocator);
+
+				std::string name = (fs::path(entry)).filename().string();
+				temp_value.SetString(name.c_str(), name.length(), allocator);
+				dir.AddMember("name", temp_value, allocator);
+
+				std::string path = (fs::canonical(fs::path(entry))).string();
+				temp_value.SetString(path.c_str(), path.length(), allocator);
+				dir.AddMember("path", temp_value, allocator);
+				
+				dir_content.PushBack(dir, allocator);
+			}
+		}
+		document.AddMember("content", dir_content, allocator);
+	}
+	else {
+		// TODO - log/respond. path is not directory
+	}
+
+	std::string json = stringfy_document(document);	
+
+	if(accepts_gzip_encoding(request->header)) {
+		ss_response << gzip_encode(json);
+		http_header += "Content-Encoding: gzip\r\n";
+	}
+	else {
+		ss_response << json;
+	}
+	http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+	http_header += "Content-Type: application/json\r\n";
+	http_status = "200 OK";
+
+	LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+		<< " to " << request->remote_endpoint_address();
+
+	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+}
+
+// TODO - This is INSECURE. The Client has access to the entire filesystem. Fix this allowing only access to the torrents folders and files.
+// TODO - As far as I know the video file here is being sent sequentially, therefore the client will have problems jumping forward in the torrent video stream (more noticeably in slower and remote connections). This is ok for now, another approach should be implemented soon. Search for HTTP 206 Partial Content and streaming!!
+void RestAPI::stream_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	try {
+		std::map<std::string, api_parameter> required_parameters = {
+			{"path",{"path",".",api_parameter_format::text,{}}}
+		};
+		std::map<std::string, api_parameter> optional_parameters = { };
+		SimpleWeb::CaseInsensitiveMultimap query = request->parse_query_string();
+		std::string invalid_parameter = validate_all_parameters(query, required_parameters, optional_parameters);
+		if(invalid_parameter.length() > 0) { 
+			respond_invalid_parameter(response, request, invalid_parameter);
+			return;
+		}
+
+		fs::path path = required_parameters.find("path")->second.value;
+		if(!boost::filesystem::is_regular_file(path)) { // TODO - there is also a funtion called is_symlink(). Maybe we should permit symlinks and not only regular files? Test this. 
+			// TODO - error. log. respond. Is not file. Needs to be a file.
+		}
+
+		SimpleWeb::CaseInsensitiveMultimap header;
+
+		//    Uncomment the following line to enable Cache-Control
+		//    header.emplace("Cache-Control", "max-age=86400");
+
+#ifdef HAVE_OPENSSL
+		//    Uncomment the following lines to enable ETag
+		//    {
+		//      ifstream ifs(path.string(), ifstream::in | ios::binary);
+		//      if(ifs) {
+		//        auto hash = SimpleWeb::Crypto::to_hex_string(SimpleWeb::Crypto::md5(ifs));
+		//        header.emplace("ETag", "\"" + hash + "\"");
+		//        auto it = request->header.find("If-None-Match");
+		//        if(it != request->header.end()) {
+		//          if(!it->second.empty() && it->second.compare(1, hash.size(), hash) == 0) {
+		//            response->write(SimpleWeb::StatusCode::redirection_not_modified, header);
+		//            return;
+		//          }
+		//        }
+		//      }
+		//      else
+		//        throw invalid_argument("could not read file");
+		//    }
+#endif
+
+		auto ifs = std::make_shared<std::ifstream>();
+		ifs->open(path.string(), std::ifstream::in | std::ios::binary | std::ios::ate);
+
+		if(*ifs) {
+			auto length = ifs->tellg();
+			ifs->seekg(0, std::ios::beg);
+
+			header.emplace("Content-Length", std::to_string(length)); // TODO - There are more headers that SHOULD be here so clients will know the filename, file extension, video format etc. Like Content-Disposition. Google about this. What headers are needed to stream? 
+			response->write(header);
+
+			// Trick to define a recursive function within this scope (for your convenience)
+			class FileServer {
+				public:
+					static void read_and_send(const std::shared_ptr<HttpServer::Response> &response, const std::shared_ptr<std::ifstream> &ifs) {
+						// Read and send 128 KB at a time
+						static std::vector<char> buffer(131072); // Safe when server is running on one thread
+						std::streamsize read_length;
+						if((read_length = ifs->read(&buffer[0], buffer.size()).gcount()) > 0) {
+							response->write(&buffer[0], read_length);
+							if(read_length == static_cast<std::streamsize>(buffer.size())) {
+								response->send([response, ifs](const SimpleWeb::error_code &ec) {
+										if(!ec)
+										read_and_send(response, ifs);
+										else
+										std::cerr << "Connection interrupted" << std::endl; // TODO - log
+										});
+							}
+						}
+					}
+			};
+			FileServer::read_and_send(response, ifs);
+		}
+		else
+			throw std::invalid_argument("could not read file");
+	}
+	catch(const std::exception &e) {
+		response->write(SimpleWeb::StatusCode::client_error_bad_request, "Could not open path " + request->path + ": " + e.what());
+		LOG_ERROR << "Could not open path " + request->path + ": " + e.what();
 	}
 }

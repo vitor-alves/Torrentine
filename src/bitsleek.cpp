@@ -113,7 +113,7 @@ void parse_arguments(int const argc, char const* argv[], fs::path &config_file) 
 
 bool initialize_log(ConfigManager &config) {		
 	fs::path log_file_path = "./";
-	size_t log_max_size = 5*1024*1024; // 5MB
+	size_t log_max_size = 5*1024; // 5MB
 	int log_max_files = 1; // Currently only 1 log file. Changing this will require changes in the API to get logs.
 				// This adds unnecessary complexity.
 	plog::Severity log_severity = plog::Severity::debug;

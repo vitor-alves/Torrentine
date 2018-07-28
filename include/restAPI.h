@@ -8,10 +8,12 @@
 #include "rapidjson/stringbuffer.h"
 #include <memory>
 
+
 #ifndef REST_API_H
 #define REST_API_H
 
 typedef SimpleWeb::Server<SimpleWeb::HTTP> HttpServer;
+namespace fs = boost::filesystem;
 
 using CaseInsensitiveMultimap = std::unordered_multimap<std::string, std::string, SimpleWeb::CaseInsensitiveHash, SimpleWeb::CaseInsensitiveEqual>;
 
@@ -101,6 +103,9 @@ public:
 	void torrents_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void session_queue_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void get_authorization(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void server_directory_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void stream_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 };
 
 
