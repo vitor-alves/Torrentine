@@ -117,38 +117,38 @@ void RestAPI::define_resources() {
 			*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << resp;
 		};
 
-	/* /torrents/<id>/stop - PATCH */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
+	/* /torrents/<id*>/stop - PATCH */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)stop$"]["PATCH"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_stop(response, request); };
 
-	/* /torrents/<id>/files - GET */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)files$"]["GET"] =
+	/* /torrents/<id*>/files - GET */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)files$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_files_get(response, request); };
 
-	/* /torrents/<id>/peers - GET */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)peers$"]["GET"] =
+	/* /torrents/<id*>/peers - GET */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)peers$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_peers_get(response, request); };
 
-	/* /torrents/<id>/recheck - POST */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)recheck$"]["POST"] =
+	/* /torrents/<id*>/recheck - POST */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)recheck$"]["PATCH"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_recheck(response, request); };
 
-	/* /torrents/<id>/start - PATCH */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)start$"]["PATCH"] =
+	/* /torrents/<id*>/start - PATCH */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)start$"]["PATCH"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_start(response, request); };
 
-	/* /session/torrents/<id>/status - GET */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)status$"]["GET"] =
+	/* /torrents/<id*>/status - GET */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)status$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_status_get(response, request); };
 
-	/* /session/torrents/<id> - DELETE */
-	server.resource["^/v1.0/session/torrents(?:/([0-9,]+)|)$"]["DELETE"] = /* TODO - I am not sure if this regex is working when multiple ids provided.
+	/* /torrents/<id*> - DELETE */
+	server.resource["^/v1.0/torrents(?:/([0-9,]+)|)$"]["DELETE"] = /* TODO - I am not sure if this regex is working when multiple ids provided.
 											I make a request to delete 1,2,3 and it did not work. Test it. */
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->torrents_delete(response, request); };
@@ -158,38 +158,38 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->get_logs(response, request); };
 
-	/* /session/torrents - POST */
-	server.resource["^/v1.0/session/torrents$"]["POST"] =
+	/* /torrents - POST */
+	server.resource["^/v1.0/torrents$"]["POST"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_add(response, request); };
 
-	/* /torrents/<id>/trakers - GET */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)trackers$"]["GET"] =
+	/* /torrents/<id*>/trakers - GET */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)trackers$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_trackers_get(response, request); };
 
-	/* /session/status - GET */
-	server.resource["^/v1.0/session/status$"]["GET"] =
+	/* /program/status - GET */
+	server.resource["^/v1.0/program/status$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->session_status_get(response, request); };
+		{ this->program_status_get(response, request); };
 
 	/* /program/settings - GET */
 	server.resource["^/v1.0/program/settings$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->program_settings_get(response, request); };
 
-	/* /session/torrents/<id>/info - GET */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)info$"]["GET"] =
+	/* /torrents/<id*>/info - GET */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)info$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_info_get(response, request); };
 
-	/* /session/torrents/<id>/settings - GET */
-	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)settings$"]["GET"] =
+	/* /torrents/<id*>/settings - GET */
+	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)settings$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_settings_get(response, request); };
 
-	/* /session/torrents/settings - PATCH */
-	server.resource["^/v1.0/session/torrents/settings$"]["PATCH"] =
+	/* /torrents/settings - PATCH */
+	server.resource["^/v1.0/torrents/settings$"]["PATCH"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_settings_set(response, request); };
 
@@ -198,18 +198,18 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->program_settings_set(response, request); };
 
-	/* /session/session/queue/(id) - PATCH */   // TODO - This accepts only ONE <id>. Write this to the docs
-	server.resource["^/v1.0/session/queue(?:/([0-9]+))$"]["PATCH"] =
+	/* /queue/torrents/<id> - PATCH */
+	server.resource["^/v1.0/queue/torrents(?:/([0-9]+))$"]["PATCH"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->session_queue_set(response, request); };
+		{ this->queue_torrents_set(response, request); };
 
 	/* /authorization - GET */
 	server.resource["^/v1.0/authorization$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request)
 		{ this->get_authorization(response, request); };
 
-	/* /server/filesystem/directory - GET */
-	server.resource["^/v1.0/server/filesystem/directory$"]["GET"] =
+	/* /filesystem/directory - GET */
+	server.resource["^/v1.0/filesystem/directory$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->server_directory_get(response, request); };
 
@@ -1836,7 +1836,7 @@ void RestAPI::torrents_trackers_get(std::shared_ptr<HttpServer::Response> respon
 	}
 }
 
-void RestAPI::session_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+void RestAPI::program_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
 		return;
@@ -1865,9 +1865,9 @@ void RestAPI::session_status_get(std::shared_ptr<HttpServer::Response> response,
 	std::string http_status;
 	std::stringstream ss_response;
 	// TODO - change the name of the variables here. I copied it from elsewhere
-	char const *message = "Succesfuly retrieved session status";
+	char const *message = "Succesfuly retrieved program status";
 	document.AddMember("message", rapidjson::StringRef(message), allocator);
-	rapidjson::Value session(rapidjson::kObjectType);
+	rapidjson::Value program(rapidjson::kObjectType);
 	rapidjson::Value status(rapidjson::kObjectType);
 	status.AddMember("has_incoming_connections", session_status.has_incoming_connections, allocator);
 	status.AddMember("upload_rate", session_status.upload_rate, allocator);
@@ -1894,8 +1894,8 @@ void RestAPI::session_status_get(std::shared_ptr<HttpServer::Response> response,
 	status.AddMember("num_peers_connected", session_status.num_peers_connected, allocator);
 	status.AddMember("num_peers_half_open", session_status.num_peers_half_open, allocator);
 	status.AddMember("total_peers_connections", session_status.total_peers_connections, allocator);
-	session.AddMember("status", status, allocator);		
-	document.AddMember("session", session, allocator);
+	program.AddMember("status", status, allocator);		
+	document.AddMember("program", program, allocator);
 
 	std::string json = stringfy_document(document);	
 
@@ -2059,7 +2059,7 @@ void RestAPI::torrents_info_get(std::shared_ptr<HttpServer::Response> response, 
 			s.AddMember("comment", temp_value, allocator);
 			temp_value.SetString(ti->creator().c_str(), ti->creator().length(), allocator);
 			s.AddMember("creator", temp_value, allocator);
-			t.AddMember("status", s, allocator);
+			t.AddMember("info", s, allocator);
 			std::string temp_id = std::to_string(*it_ids);
 			temp_value.SetString(temp_id.c_str(), temp_id.length(), allocator);
 			it_ids++;
@@ -2470,7 +2470,7 @@ void RestAPI::program_settings_set(std::shared_ptr<HttpServer::Response> respons
 	}
 }
 
-void RestAPI::session_queue_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+void RestAPI::queue_torrents_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
 		return;
