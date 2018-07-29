@@ -63,7 +63,7 @@ private:
 								{3250, "could not get torrent trackers"},
 								{3260, "could not get torrent settings"},
 								{3270, "could not set torrent settings"},
-								{3280, "could not set session settings"},
+								{3280, "could not set program settings"},
 								{3290, "could not set queue position"}};
 	bool validate_authorization(std::shared_ptr<HttpServer::Request> const request);
 	std::string stringfy_document(rapidjson::Document const &document, bool const pretty=true);
@@ -93,8 +93,8 @@ public:
 	void torrents_delete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void session_status_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
-	void session_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
-	void session_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void program_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void program_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void webUI_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void get_logs(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);

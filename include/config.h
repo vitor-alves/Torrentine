@@ -38,8 +38,8 @@ public:
 			throw config_key_error("config key not found");
 		}
 	}
-	// This assumes the path/key are valid and exist in the config file
-	// TODO - this needs testing. I am not using this yet
+	// TODO - This assumes the path/key are valid and exist in the config file. Treat errors when they are not valid.
+	// TODO - this needs testing. I am using this in the RestAPI, but this has not been tested enough.
 	// TODO - setting config is not so simple. Changing things like download path may cause troubles. Maybe a full restart is needed to apply some settings because if they were changed while program is running problems would occur.
 	// Find a good way to deal with this.
 	template <class T>

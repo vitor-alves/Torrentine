@@ -173,10 +173,10 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->session_status_get(response, request); };
 
-	/* /session/settings - GET */
-	server.resource["^/v1.0/session/settings$"]["GET"] =
+	/* /program/settings - GET */
+	server.resource["^/v1.0/program/settings$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->session_settings_get(response, request); };
+		{ this->program_settings_get(response, request); };
 
 	/* /session/torrents/<id>/info - GET */
 	server.resource["^/v1.0/session/torrents/(?:([0-9,]*)/|)info$"]["GET"] =
@@ -193,10 +193,10 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_settings_set(response, request); };
 
-	/* /session/settings - PATCH */
-	server.resource["^/v1.0/session/settings$"]["PATCH"] =
+	/* /program/settings - PATCH */
+	server.resource["^/v1.0/program/settings$"]["PATCH"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
-		{ this->session_settings_set(response, request); };
+		{ this->program_settings_set(response, request); };
 
 	/* /session/session/queue/(id) - PATCH */   // TODO - This accepts only ONE <id>. Write this to the docs
 	server.resource["^/v1.0/session/queue(?:/([0-9]+))$"]["PATCH"] =
@@ -1916,7 +1916,7 @@ void RestAPI::session_status_get(std::shared_ptr<HttpServer::Response> response,
 	*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
 }
 
-void RestAPI::session_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+void RestAPI::program_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
 		return;
@@ -1945,9 +1945,9 @@ void RestAPI::session_settings_get(std::shared_ptr<HttpServer::Response> respons
 	std::string http_status;
 	std::stringstream ss_response;
 	// TODO - change the name of the variables here. I copied it from elsewhere
-	char const *message = "Succesfuly retrieved session settings";
+	char const *message = "Succesfuly retrieved program settings";
 	document.AddMember("message", rapidjson::StringRef(message), allocator);
-	rapidjson::Value session(rapidjson::kObjectType);
+	rapidjson::Value program(rapidjson::kObjectType);
 	rapidjson::Value settings(rapidjson::kObjectType);
 	// TODO - there are A LOT of other fields that need to be here. Take a look at struct settings_pack
 	// https://www.libtorrent.org/reference-Settings.html#settings_pack
@@ -1957,8 +1957,21 @@ void RestAPI::session_settings_get(std::shared_ptr<HttpServer::Response> respons
 	settings.AddMember("active_seeds", session_settings.get_int(lt::settings_pack::active_seeds), allocator);
 	settings.AddMember("active_downloads", session_settings.get_int(lt::settings_pack::active_downloads), allocator);
 	settings.AddMember("active_limit", session_settings.get_int(lt::settings_pack::active_limit), allocator);
-	session.AddMember("settings", settings, allocator);		
-	document.AddMember("session", session, allocator);
+
+	try 
+		{
+		rapidjson::Value temp_value;	
+		std::string default_download_path = config.get_config<std::string>("directory.download_path"); 
+		temp_value.SetString(default_download_path.c_str(), default_download_path.length(), allocator);
+		settings.AddMember("default_download_path", temp_value, allocator);
+	}
+	catch(config_key_error const &e) {
+		LOG_ERROR << "Problem initializing RestAPI. Could not get config: " << e.what();
+		// TODO - respond error.
+	}
+
+	program.AddMember("settings", settings, allocator);		
+	document.AddMember("program", program, allocator);
 
 	std::string json = stringfy_document(document);	
 
@@ -2331,7 +2344,7 @@ void RestAPI::torrents_settings_set(std::shared_ptr<HttpServer::Response> respon
 	}
 }
 
-void RestAPI::session_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+void RestAPI::program_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 		respond_invalid_authorization(response, request);
 		return;
@@ -2347,7 +2360,7 @@ void RestAPI::session_settings_set(std::shared_ptr<HttpServer::Response> respons
 	
 	// TODO - wrap this in a function
 	lt::settings_pack pack;
-	for(auto &setting : document["session"]["settings"].GetObject()) { // TODO - What if we cant find it in document? LOG and respond error
+	for(auto &setting : document["program"]["settings"].GetObject()) { // TODO - What if we cant find it in document? LOG and respond error
 		std::string setting_name = setting.name.GetString();
 		rapidjson::Value &setting_value = setting.value;
 		if(setting_value.IsInt()) {
@@ -2364,6 +2377,19 @@ void RestAPI::session_settings_set(std::shared_ptr<HttpServer::Response> respons
 				pack.set_int(lt::settings_pack::active_downloads, value);
 			else if(setting_name == "active_limit")
 				pack.set_int(lt::settings_pack::active_limit, value);
+			else {
+				// TODO - Unknown setting name. Do something about that. Log and send response.
+			}
+		}
+		else if(setting_value.IsString()) {
+			std::string value = setting_value.GetString();
+			// TODO - find a solution to the following problem:
+			// settings configs may need the restart of the program. Currently we only set the default_download_path, so 
+			// no restart is needed, but in the future we will need to notify the user that the program will need a restart to apply
+			// changes.
+			if(setting_name == "default_download_path") {
+				config.set_config<std::string>("directory", "download_path", value);	
+			}
 			else {
 				// TODO - Unknown setting name. Do something about that. Log and send response.
 			}
@@ -2393,7 +2419,7 @@ void RestAPI::session_settings_set(std::shared_ptr<HttpServer::Response> respons
 	std::string http_status;
 	std::stringstream ss_response;
 	if(result == 0) {
-		char const *message = "Succesfuly changed session settings";
+		char const *message = "Succesfuly changed program settings";
 		document.AddMember("message", rapidjson::StringRef(message), allocator);
 		std::string json = stringfy_document(document);	
 		if(accepts_gzip_encoding(request->header)) {
