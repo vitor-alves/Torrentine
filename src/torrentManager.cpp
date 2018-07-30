@@ -635,7 +635,7 @@ void TorrentManager::load_session_settings() {
 	
 	// TODO - use others settings too. I will probably need to store settings in config file.	
 	lt::settings_pack pack;
-	pack.set_str(lt::settings_pack::user_agent, "Torrentine 0.0.0"); // TODO - use global variable bitsleek_version
+	pack.set_str(lt::settings_pack::user_agent, "Torrentine 0.0.0"); // TODO - use global variable torrentine_version
 	pack.set_int(lt::settings_pack::active_downloads, 5); // TODO - put this in config.ini (maybe this option is alreary in fastresume)
 	
 	session.apply_settings(pack);

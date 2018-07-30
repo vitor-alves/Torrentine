@@ -3,7 +3,7 @@
 #include "plog/Log.h"
 #include <signal.h>
 
-const std::string bitsleek_version = "0.0.0";
+const std::string torrentine_version = "0.0.0";
 
 std::unordered_map<std::string, plog::Severity> map_log_severity({{"none",plog::Severity::none},
 		       			{"fatal",plog::Severity::fatal},

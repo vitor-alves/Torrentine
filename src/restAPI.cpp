@@ -497,7 +497,7 @@ void RestAPI::get_logs(std::shared_ptr<HttpServer::Response> response, std::shar
 		}
 		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
 		http_header += "Content-Type: text/plain\r\n";
-		http_header += "Content-Disposition: inline; filename=bitsleek-log.txt\r\n";
+		http_header += "Content-Disposition: inline; filename=torrentine-log.txt\r\n";
 		http_status = "200 OK";
 
 		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status

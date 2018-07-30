@@ -41,7 +41,7 @@ bool ConfigManager::create_default_config_file(fs::path const config_file) {
 		
 		std::shared_ptr<cpptoml::table> table_log = cpptoml::make_table();
 		table_log->insert("severity", "info");
-		table_log->insert("file_path", "log/bitsleek-log.txt");
+		table_log->insert("file_path", "log/torrentine-log.txt");
 		table_log->insert("max_size", 5242880);
 		root->insert("log", table_log);
 				

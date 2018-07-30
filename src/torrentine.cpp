@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <cwchar>
 #include "restAPI.h"
-#include "bitsleek.h"
+#include "torrentine.h"
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 #include <cstdlib>
@@ -105,7 +105,7 @@ void parse_arguments(int const argc, char const* argv[], fs::path &config_file) 
 		exit(1);	
 	}
 	if(vmap.count("version")) {
-		std::cout << bitsleek_version << std::endl;
+		std::cout << torrentine_version << std::endl;
 		exit(1);	
 	}
 }
