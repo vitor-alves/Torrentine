@@ -10,9 +10,10 @@
 	torrent_file_path = "state/torrents/"
 	session_state_path = "state/session.state"
 	download_path = "temp/downloads/"
+	uploaded_torrents_path = "temp/uploaded_torrents/"
 	fastresume_path = "state/fastresume/"
 [libtorrent]
 	[libtorrent.extensions]
-		ut_pex_plugin = "enabled"
 		smart_ban_plugin = "enabled"
 		ut_metadata_plugin = "enabled"
+		ut_pex_plugin = "enabled"

@@ -163,6 +163,11 @@ void RestAPI::define_resources() {
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
 		{ this->torrents_add(response, request); };
 
+	/* /torrents/upload - POST */
+	server.resource["^/v1.0/torrents/upload$"]["POST"] =
+		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
+		{ this->torrents_upload_files(response, request); };
+
 	/* /torrents/<id*>/trakers - GET */
 	server.resource["^/v1.0/torrents/(?:([0-9,]*)/|)trackers$"]["GET"] =
 		[&](std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) 
@@ -1317,6 +1322,177 @@ int RestAPI::parse_request_to_atp(std::shared_ptr<HttpServer::Request> request, 
 
 }
 
+int RestAPI::save_request_files_to_disk(std::shared_ptr<HttpServer::Request> request, std::vector<std::string> &saved_torrents_path) {
+	int error_code = 0;	
+	std::string buffer;
+	buffer.resize(131072);
+
+	std::string boundary;
+	if(!getline(request->content, boundary)) {
+		error_code = 3180;
+		LOG_ERROR << error_codes.at(error_code); 
+		return error_code;
+	}
+
+	// go through all content parts
+	while(true) {
+		std::stringstream content;
+		std::string filename;
+		std::string name;
+
+		auto header = SimpleWeb::HttpHeader::parse(request->content);
+		auto header_it = header.find("Content-Disposition");
+		if(header_it != header.end()) {
+			auto content_disposition_attributes = SimpleWeb::HttpHeader::FieldValue::SemicolonSeparatedAttributes::parse(header_it->second);
+			auto name_it = content_disposition_attributes.find("name");
+			if(name_it != content_disposition_attributes.end()) {
+				name = name_it->second;
+
+				bool add_newline_next = false; // there is an extra newline before content boundary, this avoids adding this extra newline to file
+				while(true) {
+					request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
+					if(request->content.eof()) {
+						error_code = 3190;
+						LOG_ERROR << error_codes.at(error_code);
+						return error_code;
+					}
+					auto size = request->content.gcount();
+
+					if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
+							std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
+							buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
+						break;
+
+					if(add_newline_next) {
+						content.put('\n');
+						add_newline_next = false;
+					}
+
+					if(!request->content.fail()) { // got line or section that ended with newline
+						content.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
+						add_newline_next = true;
+					}
+					else
+						content.write(buffer.c_str(), size);
+
+					request->content.clear(); // clear stream state
+				}
+				// TODO - there should be a verification to check if torrentfile is not above X megabytes (to avoid abuse)	
+				if(name == "file") { // TODO - check also for the following headers in the request: content-type must be from bittorrent 
+					filename = random_string(20) + ".torrent"; 
+
+					fs::path const received_torrent = torrent_file_path + filename;
+
+					std::ofstream ofs(received_torrent.string());
+					ofs << content.rdbuf();
+					ofs.close();
+
+					saved_torrents_path.push_back(filename);
+				}
+			}
+		}
+		else { // no more parts
+			error_code = 0;
+			return error_code;
+		}
+	}
+
+}
+
+void RestAPI::torrents_upload_files(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
+	if(!validate_authorization(request)) {
+	   respond_invalid_authorization(response, request);
+	   return;
+	}
+
+	std::vector<std::string> saved_torrents_path;
+	int error_code = save_request_files_to_disk(request, saved_torrents_path);
+
+	if(error_code != 0) {
+		 // TODO - else respond / log error
+	}
+	std::string http_header;
+	std::string origin_str;
+	std::string credentials_str = "true";
+	if(enable_CORS) {
+		auto header = request->header;
+		
+		auto origin = header.find("Origin");
+		if(origin != header.end()) {
+			origin_str = origin->second;
+		}
+
+		http_header += "Access-Control-Allow-Origin: " + origin_str + "\r\n";
+		http_header += "Access-Control-Allow-Credentials: " + credentials_str + "\r\n";
+	}
+
+	rapidjson::Document document;
+	document.SetObject();
+	rapidjson::Document::AllocatorType &allocator = document.GetAllocator();
+	std::string http_status;
+	std::stringstream ss_response;
+	if(error_code == 0) {
+		char const *message = "Torrents uploaded successfully";
+		document.AddMember("message", rapidjson::StringRef(message), allocator);
+		rapidjson::Value t(rapidjson::kArrayType);
+		for(std::string path : saved_torrents_path) {
+			rapidjson::Value s(rapidjson::kObjectType);
+			rapidjson::Value temp_value;
+			temp_value.SetString(path.c_str(), path.length(), allocator);
+			s.AddMember("path", temp_value, allocator);
+			t.PushBack(s, allocator);
+		}
+		document.AddMember("uploaded_torrents", t, allocator);
+
+		std::string json = stringfy_document(document);	
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "200 OK";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+	/* TODO - Another design limitation with error codes here. The http_status should be determined by the error code. For example, sometimes we need 500 and sometimes we need 400 and the error code should contain that information. Error codes NEED TO be an object of some kind to add make this happen.*/
+	else {
+		rapidjson::Value errors(rapidjson::kArrayType);
+		rapidjson::Value e(rapidjson::kObjectType);
+		e.AddMember("code", error_code, allocator);
+		char const *message = error_codes.find(error_code)->second.c_str();
+		e.AddMember("message", rapidjson::StringRef(message), allocator);
+		errors.PushBack(e, allocator);
+		document.AddMember("errors", errors, allocator);
+
+		std::string json = stringfy_document(document);
+
+		if(accepts_gzip_encoding(request->header)) {
+			ss_response << gzip_encode(json);
+			http_header += "Content-Encoding: gzip\r\n";
+		}
+		else {
+			ss_response << json;
+		}
+
+		http_header += "Content-Length: " + std::to_string(ss_response.str().length()) + "\r\n";
+		http_header += "Content-Type: application/json\r\n";
+		http_status = "404 Not Found";
+
+		LOG_DEBUG << "HTTP " << request->method << " " << request->path << " "  << http_status
+			<< " to " << request->remote_endpoint_address() << " Message: " << message;
+
+		*response << "HTTP/1.1 " << http_status << "\r\n" << http_header << "\r\n" << ss_response.str();
+	}
+}
+
 void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request) {
 	if(!validate_authorization(request)) {
 	   respond_invalid_authorization(response, request);
@@ -1330,7 +1506,7 @@ void RestAPI::torrents_add(std::shared_ptr<HttpServer::Response> response, std::
 		for(lt::add_torrent_params atp : parsed_atps) {
 			torrent_manager.add_torrent_async(atp);
 		}
-	}
+	} // TODO - else respond error
 
 	std::string http_header;
 	std::string origin_str;

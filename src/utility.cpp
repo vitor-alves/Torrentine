@@ -14,7 +14,7 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <curl/curl.h>
 
-std::string random_string(std::string chars, int const size) {
+std::string random_string(int const size, std::string chars) {
 	std::random_device rgn;
 	std::uniform_int_distribution<> index_dist(0, (chars.size()-1));
 	std::stringstream ss;

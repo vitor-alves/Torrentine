@@ -56,7 +56,6 @@ private:
 								{3180, "could not find boundary in request"},
 								{3190, "request format is incorrect"},
 								{3200, "internal server error"},
-								{3210, "could not find filename field in header"},
 								{3220, "no valid torrent file HTTP URL was found"},
 								{3230, "server could not download torrent file from HTTP URL"},
 								{3240, "there seems to be a problem with the provided torrent file"},
@@ -98,7 +97,9 @@ public:
 	void webUI_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void get_logs(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void add_torrents_from_request(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+	void torrents_upload_files(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	int parse_request_to_atp(std::shared_ptr<HttpServer::Request> request, std::vector<lt::add_torrent_params> &parsed_atps);
+	int save_request_files_to_disk(std::shared_ptr<HttpServer::Request> request, std::vector<std::string> &saved_torrents_path);
 	void torrents_info_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_settings_get(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 	void torrents_settings_set(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
