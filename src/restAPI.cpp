@@ -1141,185 +1141,111 @@ void RestAPI::torrents_delete(std::shared_ptr<HttpServer::Response> response, st
 
 int RestAPI::parse_request_to_atp(std::shared_ptr<HttpServer::Request> request, std::vector<lt::add_torrent_params> &parsed_atps) {
 	int error_code = 0;	
-	std::string buffer;
-	buffer.resize(131072);
 
-	std::string boundary;
-	if(!getline(request->content, boundary)) {
-		error_code = 3180;
-		LOG_ERROR << error_codes.at(error_code); 
-		return error_code;
+	rapidjson::Document document;
+	rapidjson::ParseResult parse_ok = document.Parse(request->content.string().c_str());
+
+	if(!parse_ok) {
+		LOG_ERROR <<  "JSON parse error: " <<  rapidjson::GetParseError_En(parse_ok.Code()) << "(" << parse_ok.Offset() << ")";
+		// TODO - respond invalid json parse	
 	}
 
-	// go through all content parts
-	while(true) {
-		std::stringstream content;
-		std::string filename;
-		std::string name;
+	for(auto &torrent : document["torrents"].GetArray()) { // TODO - What if we cant find it in document? LOG and respond error
+		lt::add_torrent_params atp;
+		std::string type =  torrent["type"].GetString(); // TODO - What if we cant find it in document? LOG and respond error
+		std::string data =  torrent["data"].GetString();
 
-		auto header = SimpleWeb::HttpHeader::parse(request->content);
-		auto header_it = header.find("Content-Disposition");
-		if(header_it != header.end()) {
-			auto content_disposition_attributes = SimpleWeb::HttpHeader::FieldValue::SemicolonSeparatedAttributes::parse(header_it->second);
-			auto name_it = content_disposition_attributes.find("name");
-			if(name_it != content_disposition_attributes.end()) {
-				name = name_it->second;
+		if(type == "file") {   // TODO - What if we cant find it in document? LOG and respond error 
+			std::vector<char> buffer;
+			if(!file_to_buffer(buffer, torrent_file_path + data)) {
+				LOG_ERROR << "Could not open file" + torrent_file_path + data; 
+				error_code = 3200;// TODO - respond that torrent file was not found instead
+				return error_code;
+			}
 
-				bool add_newline_next = false; // there is an extra newline before content boundary, this avoids adding this extra newline to file
-				while(true) {
-					request->content.getline(&buffer[0], static_cast<std::streamsize>(buffer.size()));
-					if(request->content.eof()) {
-						error_code = 3190;
-						LOG_ERROR << error_codes.at(error_code);
-						return error_code;
-					}
-					auto size = request->content.gcount();
+			lt::bdecode_node node;
+			char const *buf = buffer.data();	
+			lt::error_code ec;
+			int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
+			if(ec) {
+				LOG_ERROR << "Problem occured while decoding torrent: " + ec.message(); 
+				error_code = 3240;
+				return error_code;
+			}	
 
-					if(size >= 2 && (static_cast<size_t>(size - 1) == boundary.size() || static_cast<size_t>(size - 1) == boundary.size() + 2) && // last boundary ends with: --
-							std::strncmp(buffer.c_str(), boundary.c_str(), boundary.size() - 1 /*ignore \r*/) == 0 &&
-							buffer[static_cast<size_t>(size) - 2] == '\r') // buffer must also include \r at end
-						break;
+			lt::torrent_info info(node);	
+			boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
+			atp.ti = t_info;
+			atp.save_path = download_path;
+		}
+		else if(type == "magnet") {
+			atp.url = data;
+			atp.save_path = download_path;	
+		}
+		else if(type == "infohash") {
+			std::stringstream  ss(data);
+			lt::sha1_hash hash;
+			ss >> hash;
+			atp.info_hash = hash;
+			atp.save_path = download_path;	
+		}
+		else if(type == "http") {
+			std::string url = data;
+			
+			std::string filename = random_string(20) + ".torrent";
 
-					if(add_newline_next) {
-						content.put('\n');
-						add_newline_next = false;
-					}
+			std::string out_file = torrent_file_path + filename;
+			// TODO - this download is being done sincronously and slows down the HTTP response considerably. Make the process of downloading the .torrent and adding in async somehow when the adding method is "http"
+			bool success = download_file(url.c_str(), out_file.c_str()); 
+			if(success == false) {
+				// TODO - this needs to be improved. When the file cannot be downloaded the server responds that the file cannot be downloaded but does not specify which file cant be downloaded (does not respond the url. only logs it). I think its time to create an error object to organize things. I am not happy with how the errors are being treated in cases like this because its confusing. Find a good solution. 
+				LOG_ERROR << "Could not download file " + url;
+				error_code = 3230;
+				return error_code;
+			}
 
-					if(!request->content.fail()) { // got line or section that ended with newline
-						content.write(buffer.c_str(), size - 1); // size includes newline character, but buffer does not
-						add_newline_next = true;
-					}
-					else
-						content.write(buffer.c_str(), size);
+			std::vector<char> buffer;
+			if(!file_to_buffer(buffer, torrent_file_path + filename)) {
+				LOG_ERROR << "Could not open file" + filename;
+				error_code = 3200;
+				return error_code;
+			}
 
-					request->content.clear(); // clear stream state
-				}
-				// TODO - there should be a verification to check if torrentfile is not above X megabytes (to avoid abuse)	
-				if(name == "torrentfile") {
-					auto filename_it = content_disposition_attributes.find("filename");
-					if(filename_it != content_disposition_attributes.end()) {
-						filename = filename_it->second;
+			lt::bdecode_node node;
+			char const *buf = buffer.data();	
+			lt::error_code ec;
+			int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
+			if(ec) {
+				LOG_ERROR << "Problem occured while decoding torrent: " + ec.message(); 
+				error_code = 3240;
+				return error_code;
+			}	
 
-						fs::path const received_torrent = torrent_file_path + filename;
+			lt::torrent_info info(node);	
+			boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
+			atp.ti = t_info;
+			atp.save_path = download_path;
+		}
 
-						std::ofstream ofs(received_torrent.string());
-						ofs << content.rdbuf();
-						ofs.close();
-
-						std::vector<char> buffer;
-						if(!file_to_buffer(buffer, received_torrent.string())) {
-							LOG_ERROR << "A problem occured while adding torrent with filename " << received_torrent.string();
-							error_code = 3200;
-							return error_code;	
-						}
-
-						lt::bdecode_node node;
-						char const *buf = buffer.data();	
-						lt::error_code ec;
-						int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
-						if(ec) {
-							LOG_ERROR << "Problem occured while decoding torrent buffer: " << ec.message();
-							error_code = 3240;
-							return error_code;	
-						}	
-
-						lt::add_torrent_params atp;
-						lt::torrent_info info(node);	
-						boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
-						atp.ti = t_info;
-						atp.save_path = download_path;
-
-						parsed_atps.push_back(atp);
-					}
-					else {
-						error_code = 3210; 
-						LOG_ERROR << error_codes.at(error_code);
-						return error_code;
-					}
-				}
-				else if(name == "magnet") {
-					lt::add_torrent_params atp;
-					atp.url = content.str();
-					atp.save_path = download_path;
-
-					parsed_atps.push_back(atp);
-				}
-				else if(name == "infohash") {
-					lt::add_torrent_params atp;
-
-					std::string infohash_str = content.str();
-					lt::sha1_hash hash;
-					content >> hash;
-					atp.info_hash = hash;
-					atp.save_path = download_path;
-
-					parsed_atps.push_back(atp);
-				}
-				else if(name == "http") {
-					std::string url = content.str();
-					if(!url.empty() && url[url.size()-1] == '\r' ) { // TODO - Messing with \r, \n, \r\n may cause issues in different platforms... Test this heavily.
-						url.erase(url.size()-1);
-					}
-					std::vector<std::string> splitted_url = split_string(url, '/');
-
-					if(splitted_url.empty()) {
-						error_code = 3220;
-						LOG_ERROR << error_codes.at(error_code);
-						return error_code;
-					}
-					std::string filename = splitted_url.at(splitted_url.size()-1);
-					if(filename.empty()) {
-						error_code = 3220;
-						LOG_ERROR << error_codes.at(error_code);
-						return error_code;
-					}
-
-					std::string out_file = torrent_file_path + filename;
-					// TODO - this download is being done sincronously and slows down the HTTP response considerably. Make the process of downloading the .torrent and adding in async somehow when the adding method is "http"
-					bool success = download_file(url.c_str(), out_file.c_str()); 
-					if(success == false) {
-						// TODO - this needs to be improved. When the file cannot be downloaded the server responds that the file cannot be downloaded but does not specify which file cant be downloaded (does not respond the url. only logs it). I think its time to create an error object to organize things. I am not happy with how the errors are being treated in cases like this because its confusing. Find a good solution. 
-						LOG_ERROR << "Could not download file " + url;
-						error_code = 3230;
-						return error_code;
-					}
-
-					std::vector<char> buffer;
-					if(!file_to_buffer(buffer, torrent_file_path + filename)) {
-						LOG_ERROR << "Could not open file" + filename;
-						error_code = 3200;
-						return error_code;
-					}
-
-					lt::bdecode_node node;
-					char const *buf = buffer.data();	
-					lt::error_code ec;
-					int ret =  lt::bdecode(buf, buf+buffer.size(), node, ec);
-					if(ec) {
-						LOG_ERROR << "Problem occured while decoding torrent: " + ec.message(); 
-						error_code = 3240;
-						return error_code;
-					}	
-
-					lt::add_torrent_params atp;
-					lt::torrent_info info(node);	
-					boost::shared_ptr<lt::torrent_info> t_info = boost::make_shared<lt::torrent_info>(info);
-					atp.ti = t_info;
-					atp.save_path = download_path;
-
-					parsed_atps.push_back(atp);
+		for(auto &option : torrent["options"].GetObject()) { // TODO - What if we cant find it in document? LOG and respond error
+			std::string option_name = option.name.GetString();
+			rapidjson::Value &option_value = option.value;
+			
+			if(option_value.IsString()) {
+				std::string value = option_value.GetString();
+				if(option_name == "save_path") {
+					atp.save_path = value;
 				}
 				else {
-					LOG_ERROR << "Unknown name \"" << name << "\" in form data was ignored";
+					// TODO - Unknown setting name. Do something about that. Log and send response.
 				}
 			}
 		}
-		else { // no more parts
-			error_code = 0;
-			return error_code;
-		}
+		
+		parsed_atps.push_back(atp);
 	}
 
+	return 0;
 }
 
 int RestAPI::save_request_files_to_disk(std::shared_ptr<HttpServer::Request> request, std::vector<std::string> &saved_torrents_path) {
@@ -1409,7 +1335,7 @@ void RestAPI::torrents_upload_files(std::shared_ptr<HttpServer::Response> respon
 	int error_code = save_request_files_to_disk(request, saved_torrents_path);
 
 	if(error_code != 0) {
-		 // TODO - else respond / log error
+		 // TODO - respond / log error
 	}
 	std::string http_header;
 	std::string origin_str;
