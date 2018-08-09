@@ -26,12 +26,12 @@
 **Torrentine stands on the shoulder of giants. Kudos to everyone involved in the following projects.**
 
 [libtorrent-rasterbar](https://www.libtorrent.org/index.html),
-[Catch2](https://github.com/catchorg/Catch2),
-[cpp-base64](https://github.com/ReneNyffenegger/cpp-base64),
+[simple-web-server](https://gitlab.com/eidheim/Simple-Web-Server),
+[RapidJSON](https://github.com/Tencent/rapidjson),
 [cpptoml](https://github.com/skystrife/cpptoml),
 [Plog](https://github.com/SergiusTheBest/plog),
-[RapidJSON](https://github.com/Tencent/rapidjson),
-[simple-web-server](https://gitlab.com/eidheim/Simple-Web-Server),
+[Catch2](https://github.com/catchorg/Catch2),
+[cpp-base64](https://github.com/ReneNyffenegger/cpp-base64),
 [Boost](https://www.boost.org/),
 [SQLite](https://www.sqlite.org/index.html),
 [OpenSSL](https://www.openssl.org/),
