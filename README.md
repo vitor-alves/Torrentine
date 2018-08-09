@@ -3,12 +3,12 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 #### https://torrentine.org
-
+#### UNDER DEVELOPMENT :man_technologist:
 #### Torrentine is an open source BitTorrent client. 
 
  Most people just want to download and seed torrents, watch movies and control their torrents remotely and that's exactly what Torrentine does best.
 
-### Features
+## Features
 * **Streaming:** Watch movies while they are downloading
 
 * **Web Interface:** Manage your torrents from anywhere (home, work, school...) using the web interface
@@ -22,7 +22,7 @@
 * Encryption, I2P, SOCKS5, DHT, LSD, PEX, uTP, UPNP, NAT-PMP and more
 
 
-
+## Thanks
 **Torrentine stands on the shoulder of giants. Kudos to everyone involved in the following projects.**
 
 [libtorrent-rasterbar](https://www.libtorrent.org/index.html),
