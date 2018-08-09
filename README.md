@@ -6,7 +6,7 @@
 #### UNDER DEVELOPMENT :man_technologist:
 #### Torrentine is an open source BitTorrent client. 
 
- Most people just want to **download and seed torrents**, **watch movies and control their torrents remotely** and that's exactly what Torrentine does best.
+ Most people just want to **download and seed** torrents, **watch movies and control their torrents remotely** and that's exactly what Torrentine does best.
 
 ## Features
 * **Streaming:** Watch movies while they are downloading
