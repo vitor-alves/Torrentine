@@ -17,7 +17,7 @@
 
 * **Cross Platform:** Torrentine runs in Windows, Linux and Mac. Use any modern web browser to access the web interface
 
-* **API:** Torrentine can be 100% controlled using it's REST API. Interacting with other applications and automate tasks is easy
+* **API:** Torrentine can be 100% controlled using it's REST API. Interacting with other applications and automating tasks is easy
 
 * Encryption, I2P, SOCKS5, DHT, LSD, PEX, uTP, UPNP, NAT-PMP and more
 
